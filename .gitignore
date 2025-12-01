@@ -7,6 +7,10 @@
 
 # testing
 /coverage
+/cypress/videos
+/cypress/screenshots
+/test-results
+/.jest/
 
 # next.js
 /.next/
@@ -14,6 +18,7 @@
 
 # production
 /build
+/dist
 
 # misc
 .DS_Store
@@ -23,10 +28,17 @@
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+pnpm-debug.log*
+.pnpm-debug.log*
 
 # local env files
-.env*.local
+# It is best practice to ignore .env files to prevent leaking secrets
 .env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+*.env
 
 # vercel
 .vercel
@@ -34,3 +46,24 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Editor directories and files
+.idea
+.vscode/
+*.swp
+*.swo
+*.swn
+*.sublime-workspace
+*.sublime-project
+
+# OS Metadata
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+.DS_Store
+._*
+.Spotlight-V100
+.Trashes
+
+# Optional: TurboRepo (if you use it)
+.turbo
