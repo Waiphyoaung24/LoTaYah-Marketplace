@@ -41,7 +41,7 @@ export const Auth: React.FC<AuthProps> = ({ view, onToggleView }) => {
 
   return (
     <div className="flex flex-col items-center justify-center py-12 px-4 sm:px-6 lg:px-8 bg-stone-50">
-      <div className="max-w-md w-full space-y-8 bg-white p-8 rounded-2xl shadow-lg border border-stone-100">
+      <div className="max-w-md w-full space-y-8 bg-white p-8 rounded-2xl shadow-lg border border-stone-100 mt-20">
         <div className="text-center">
           <div className="mx-auto h-12 w-12 bg-amber-100 rounded-full flex items-center justify-center mb-4">
             <Lock className="h-6 w-6 text-amber-600" />

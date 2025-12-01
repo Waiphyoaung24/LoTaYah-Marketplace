@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useMemo, useRef } from 'react';
+import { ViewTransition } from 'react';
 import { Product, StoreProfile } from '@/lib/types';
 import { ProductCard } from './ProductCard';
 import { Search, Store, ArrowRight, ArrowLeft, Star, MapPin, Calendar, MessageSquare, Filter, ChevronLeft, ChevronRight } from 'lucide-react';
@@ -299,7 +300,8 @@ export const Storefront: React.FC = () => {
   const allCategories = Object.keys(t.categories).filter(c => c !== 'All');
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <ViewTransition>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <div className="flex flex-col lg:flex-row gap-8">
         
         {/* Sidebar Filters - Left side on desktop */}
@@ -362,7 +364,7 @@ export const Storefront: React.FC = () => {
         </aside>
 
         {/* Main Content */}
-        <div className="flex-1 min-w-0">
+        <div className="flex-1 min-w-0 mt-20">
           {filteredStores.length === 0 ? (
             <div className="text-center py-20 bg-white rounded-xl border border-dashed border-stone-200">
               <Store className="w-16 h-16 mx-auto text-stone-300 mb-4" />
@@ -388,7 +390,8 @@ export const Storefront: React.FC = () => {
           )}
         </div>
       </div>
-    </div>
+      </div>
+    </ViewTransition>
   );
 };
 

@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import { ViewTransition } from 'react';
 import { Product } from '@/lib/types';
 import { Button } from './Button';
 import { ShoppingCart, Trash2, Store } from 'lucide-react';
@@ -17,14 +18,17 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart, 
   const { t, formatPrice } = useApp();
 
   return (
-    <div className="group relative bg-white rounded-xl shadow-sm border border-stone-200 overflow-hidden hover:shadow-lg hover:shadow-amber-100/50 transition-all duration-300 flex flex-col h-full">
-      <div className="aspect-[4/3] bg-stone-100 relative overflow-hidden">
-        <img 
-          src={product.imageUrl} 
-          alt={product.title} 
-          loading="lazy"
-          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-        />
+    <ViewTransition name={`product-card-${product.id}`}>
+      <div className="group relative bg-white rounded-xl shadow-sm border border-stone-200 overflow-hidden hover:shadow-lg hover:shadow-amber-100/50 transition-all duration-300 flex flex-col h-full">
+        <div className="aspect-[4/3] bg-stone-100 relative overflow-hidden">
+          <ViewTransition name={`product-image-${product.id}`}>
+            <img 
+              src={product.imageUrl} 
+              alt={product.title} 
+              loading="lazy"
+              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+            />
+          </ViewTransition>
         <div className="absolute top-2 right-2">
            <span className="bg-white/90 backdrop-blur-sm px-2 py-1 rounded-md text-xs font-semibold text-stone-800 shadow-sm border border-stone-100">
              {t.categories[product.category as keyof typeof t.categories] || product.category}
@@ -40,9 +44,11 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart, 
               <span className="truncate">{product.storeName}</span>
             </div>
           )}
-          <h3 className="text-base font-semibold text-stone-900 line-clamp-1" title={product.title}>
-            {product.title}
-          </h3>
+          <ViewTransition name={`product-title-${product.id}`}>
+            <h3 className="text-base font-semibold text-stone-900 line-clamp-1" title={product.title}>
+              {product.title}
+            </h3>
+          </ViewTransition>
         </div>
         
         <p className="text-stone-500 text-sm mb-4 line-clamp-2 flex-grow">
@@ -77,8 +83,8 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart, 
             )}
           </div>
         </div>
-      </div>
-    </div>
+      </div></div>
+    </ViewTransition>
   );
 };
 

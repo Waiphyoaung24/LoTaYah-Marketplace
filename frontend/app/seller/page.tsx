@@ -1,5 +1,6 @@
 'use client';
 
+import { ViewTransition } from 'react';
 import { SellerDashboard } from '@/components/SellerDashboard';
 import { useApp } from '@/contexts/AppContext';
 import { useRouter } from 'next/navigation';
@@ -19,6 +20,10 @@ export default function SellerPage() {
     return null;
   }
 
-  return <SellerDashboard />;
+  return (
+    <ViewTransition>
+      <SellerDashboard />
+    </ViewTransition>
+  );
 }
 

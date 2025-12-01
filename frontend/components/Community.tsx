@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { Post } from '@/lib/types';
 import { Button } from './Button';
-import { MessageSquare, Heart, ShieldCheck, Star, Users, ArrowRight, User as UserIcon, MoreHorizontal, ShoppingBag, MessageCircle, ThumbsUp, MapPin, Globe } from 'lucide-react';
+import { MessageSquare, Heart, ShieldCheck, Star, Users, ArrowRight, User as UserIcon, MoreHorizontal, ShoppingBag, MessageCircle, ThumbsUp, MapPin, Globe, Image as ImageIcon, Smile, Send } from 'lucide-react';
 import { useApp } from '@/contexts/AppContext';
 import { useRouter } from 'next/navigation';
 
@@ -188,7 +188,7 @@ export const Community: React.FC = () => {
         </div>
 
         {/* Desktop Header */}
-        <div className="hidden sm:block text-center mb-10 mt-4">
+        <div className="hidden sm:block text-center mb-10 mt-20">
           <h1 className="text-3xl font-bold text-stone-900 mb-2">{t.community.title}</h1>
           <p className="text-stone-500 max-w-2xl mx-auto mb-8">
             Connect with other buyers, share reviews, and find trusted merchants.
@@ -221,33 +221,75 @@ export const Community: React.FC = () => {
         </div>
 
         {activeTab === 'forum' ? (
-          <div className="max-w-2xl mx-auto">
-            {/* Create Post Widget */}
-            <div className="bg-white p-4 sm:p-6 sm:rounded-xl shadow-sm border-b sm:border border-stone-200 mb-4 sm:mb-8">
+          <div className="max-w-2xl mx-auto px-4 sm:px-0">
+            {/* Create Post Widget - Shadcn Style */}
+            <div className="bg-white rounded-xl border border-stone-200 shadow-sm mb-6 overflow-hidden">
               {user ? (
-                <form onSubmit={handleSubmitPost}>
-                  <div className="flex gap-3">
-                    <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0">
-                      <span className="font-bold text-amber-700">{user.name.charAt(0)}</span>
+                <form onSubmit={handleSubmitPost} className="p-4 sm:p-6">
+                  <div className="flex gap-4">
+                    {/* Avatar */}
+                    <div className="flex-shrink-0">
+                      <div className="w-11 h-11 rounded-full bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center ring-2 ring-white shadow-sm">
+                        <span className="font-bold text-white text-sm">{user.name.charAt(0).toUpperCase()}</span>
+                      </div>
                     </div>
-                    <div className="flex-grow">
-                      <div className="bg-stone-100 rounded-2xl px-4 py-3">
+                    
+                    {/* Input Area */}
+                    <div className="flex-1 min-w-0">
+                      <div className="relative">
                         <textarea
                           value={newPostContent}
-                          onChange={(e) => setNewPostContent(e.target.value)}
+                          onChange={(e) => {
+                            setNewPostContent(e.target.value);
+                            // Auto-resize textarea
+                            e.target.style.height = 'auto';
+                            e.target.style.height = `${e.target.scrollHeight}px`;
+                          }}
                           placeholder={t.community.forum.placeholder}
-                          className="w-full bg-transparent border-none focus:ring-0 resize-none text-sm min-h-[48px] placeholder-stone-500 focus:outline-none"
-                          style={{ height: 'auto' }}
-                          rows={2}
+                          className="w-full min-h-[100px] px-4 py-3 pr-12 bg-stone-50 border border-stone-200 rounded-lg text-sm text-stone-900 placeholder-stone-500 focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 transition-all resize-none"
+                          rows={4}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+                              e.preventDefault();
+                              handleSubmitPost(e);
+                            }
+                          }}
                         />
-                      </div>
-                      <div className="flex justify-between items-center mt-3 pl-2">
-                        <div className="flex gap-4 text-stone-400">
-                           {/* Placeholder icons for media upload */}
-                           <div className="w-6 h-6 rounded bg-stone-100 cursor-pointer hover:bg-stone-200 transition-colors"></div>
-                           <div className="w-6 h-6 rounded bg-stone-100 cursor-pointer hover:bg-stone-200 transition-colors"></div>
+                        <div className="absolute bottom-3 right-3 flex items-center gap-1 text-xs text-stone-400">
+                          {newPostContent.length > 0 && (
+                            <span className={`${newPostContent.length > 500 ? 'text-red-500' : 'text-stone-400'}`}>
+                              {newPostContent.length}
+                            </span>
+                          )}
                         </div>
-                        <Button type="submit" size="sm" disabled={!newPostContent.trim()}>
+                      </div>
+                      
+                      {/* Action Bar */}
+                      <div className="flex items-center justify-between mt-4 pt-4 border-t border-stone-100">
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            className="flex items-center justify-center w-9 h-9 rounded-lg text-stone-500 hover:text-amber-600 hover:bg-amber-50 transition-colors"
+                            title="Add image"
+                          >
+                            <ImageIcon className="w-4 h-4" />
+                          </button>
+                          <button
+                            type="button"
+                            className="flex items-center justify-center w-9 h-9 rounded-lg text-stone-500 hover:text-amber-600 hover:bg-amber-50 transition-colors"
+                            title="Add emoji"
+                          >
+                            <Smile className="w-4 h-4" />
+                          </button>
+                        </div>
+                        
+                        <Button 
+                          type="submit" 
+                          size="sm" 
+                          disabled={!newPostContent.trim() || newPostContent.length > 500}
+                          className="flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          <Send className="w-3.5 h-3.5" />
                           {t.community.forum.postBtn}
                         </Button>
                       </div>
@@ -255,20 +297,36 @@ export const Community: React.FC = () => {
                   </div>
                 </form>
               ) : (
-                <div className="text-center py-4">
-                  <p className="text-stone-500 text-sm mb-2">{t.community.forum.loginToPost}</p>
-                  <Button size="sm" variant="outline" onClick={() => router.push('/login')}>
-                     Login
+                <div className="p-6 text-center">
+                  <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-stone-100 mb-4">
+                    <MessageSquare className="w-8 h-8 text-stone-400" />
+                  </div>
+                  <p className="text-stone-600 text-sm font-medium mb-3">{t.community.forum.loginToPost}</p>
+                  <Button 
+                    size="sm" 
+                    variant="outline" 
+                    onClick={() => router.push('/login')}
+                    className="gap-2"
+                  >
+                    <UserIcon className="w-4 h-4" />
+                    Login to Post
                   </Button>
                 </div>
               )}
             </div>
 
             {/* Feed List */}
-            <div>
-              {posts.map(post => (
-                <PostItem key={post.id} post={post} onLike={() => handleLikePost(post.id)} />
-              ))}
+            <div className="space-y-4">
+              {posts.length > 0 ? (
+                posts.map(post => (
+                  <PostItem key={post.id} post={post} onLike={() => handleLikePost(post.id)} />
+                ))
+              ) : (
+                <div className="bg-white rounded-xl border border-stone-200 p-12 text-center">
+                  <MessageSquare className="w-12 h-12 text-stone-300 mx-auto mb-4" />
+                  <p className="text-stone-500 text-sm">No posts yet. Be the first to share something!</p>
+                </div>
+              )}
             </div>
           </div>
         ) : (
@@ -292,7 +350,11 @@ export const Community: React.FC = () => {
                       <div>
                          <h3 className="text-lg font-bold text-stone-900 flex items-center">
                            {store.name}
-                           {store.verified && <ShieldCheck className="w-4 h-4 text-blue-500 ml-1" title="Verified Merchant" />}
+                           {store.verified && (
+                             <span title="Verified Merchant">
+                               <ShieldCheck className="w-4 h-4 text-blue-500 ml-1" />
+                             </span>
+                           )}
                          </h3>
                          <p className="text-sm text-stone-500 flex items-center mt-1">
                            <Star className="w-3 h-3 text-yellow-400 fill-current mr-1" />

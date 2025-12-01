@@ -1,8 +1,13 @@
 'use client';
 
+import { ViewTransition } from 'react';
 import { Community } from '@/components/Community';
 
 export default function CommunityPage() {
-  return <Community />;
+  return (
+    <ViewTransition>
+      <Community />
+    </ViewTransition>
+  );
 }
 

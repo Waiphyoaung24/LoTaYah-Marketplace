@@ -4,7 +4,21 @@ import React, { createContext, useContext, useState, useCallback, ReactNode } fr
 import { Product, StoreProfile, CartItem, User, Post, Language, Currency } from '@/lib/types';
 import { translations } from '@/lib/translations';
 
-// Dummy Data Generation
+// Deterministic price generator based on product ID
+// This ensures the same product always has the same price on both server and client
+function getDeterministicPrice(productId: string): number {
+  // Simple hash function to convert product ID to a number
+  let hash = 0;
+  for (let i = 0; i < productId.length; i++) {
+    const char = productId.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash = hash & hash; // Convert to 32-bit integer
+  }
+  // Convert to price range 10-110
+  return Math.abs(hash % 100) + 10;
+}
+
+// Dummy Data Generation - Using deterministic prices for hydration safety
 const generateDummyProducts = (): Product[] => {
   const stores = [
     { name: "Golden Land Crafts", category: "Crafts", id: "store-1" },
@@ -13,17 +27,19 @@ const generateDummyProducts = (): Product[] => {
   ];
 
   const products: Product[] = [];
+  const baseTimestamp = 1704067200000; // Fixed timestamp: 2024-01-01 00:00:00 UTC
 
-  stores.forEach(store => {
+  stores.forEach((store, storeIndex) => {
     for (let i = 1; i <= 10; i++) {
+      const productId = `${store.id}-item-${i}`;
       products.push({
-        id: `${store.id}-item-${i}`,
+        id: productId,
         title: `${store.category} Item ${i} from ${store.name}`,
         description: `High quality ${store.category.toLowerCase()} product. Handpicked for the best quality and value. Available now at LoTaYah.`,
-        price: Math.floor(Math.random() * 100) + 10,
+        price: getDeterministicPrice(productId), // Deterministic price based on ID
         category: store.category,
         imageUrl: `https://picsum.photos/seed/${store.name.replace(/\s/g,'')}${i}/400/400`,
-        createdAt: Date.now(),
+        createdAt: baseTimestamp + (storeIndex * 10000) + (i * 1000), // Deterministic timestamp
         storeName: store.name,
         sellerId: store.id
       });
@@ -142,7 +158,8 @@ interface AppContextType {
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [products, setProducts] = useState<Product[]>(generateDummyProducts());
+  // Use lazy initialization to ensure products are only generated once
+  const [products, setProducts] = useState<Product[]>(() => generateDummyProducts());
   const [stores, setStores] = useState<StoreProfile[]>(dummyStores);
   const [posts, setPosts] = useState<Post[]>(dummyPosts);
   const [cart, setCart] = useState<CartItem[]>([]);
