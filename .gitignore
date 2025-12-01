@@ -67,3 +67,13 @@ Desktop.ini
 
 # Optional: TurboRepo (if you use it)
 .turbo
+
+# ------------------------------------------------
+# NON-STANDARD IGNORES (User Requested)
+# WARNING: Ignoring these files will prevent
+# others from installing your project dependencies.
+# ------------------------------------------------
+package.json
+package-lock.json
+yarn.lock
+pnpm-lock.yaml

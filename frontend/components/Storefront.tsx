@@ -308,12 +308,12 @@ export const Storefront: React.FC = () => {
             
              {/* Search */}
             <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none z-10">
                 <Search className="h-5 w-5 text-stone-400" />
               </div>
               <input
                 type="text"
-                className="block w-full pl-10 pr-3 py-3 border border-stone-200 rounded-xl leading-5 bg-white placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-amber-500 transition-shadow shadow-sm"
+                className="pl-12"
                 placeholder={t.buyer.searchPlaceholder}
                 value={search}
                 onChange={e => setSearch(e.target.value)}

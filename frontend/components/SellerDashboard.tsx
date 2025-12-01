@@ -4,8 +4,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { Product, StoreProfile } from '@/lib/types';
 import { Button } from './Button';
 import { ProductCard } from './ProductCard';
-import { generateProductDescription, generateStoreInventory, generateEnhancedProductImage } from '@/lib/services/geminiService';
-import { Sparkles, Package, Plus, Wand2, Settings, Image as ImageIcon, MapPin, Save, Store, Camera, RefreshCw } from 'lucide-react';
+import { Sparkles, Package, Plus, Settings, Image as ImageIcon, MapPin, Save, Store, Upload, X, Wand2 } from 'lucide-react';
 import { useApp } from '@/contexts/AppContext';
 
 export const SellerDashboard: React.FC = () => {
@@ -40,10 +39,8 @@ export const SellerDashboard: React.FC = () => {
   const [isSavingProfile, setIsSavingProfile] = useState(false);
   const [showSaveSuccess, setShowSaveSuccess] = useState(false);
 
-  // Magic Studio State
-  const [magicPrompt, setMagicPrompt] = useState('');
-  const [generatedImage, setGeneratedImage] = useState<string | null>(null);
-  const [isGeneratingImage, setIsGeneratingImage] = useState(false);
+  // Image upload state
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
 
   useEffect(() => {
     if (initialStoreProfile) {
@@ -67,61 +64,80 @@ export const SellerDashboard: React.FC = () => {
   const handleGenerateDescription = async () => {
     if (!newItem.title) return;
     setIsGenerating(true);
-    const desc = await generateProductDescription(newItem.title, newItem.category);
-    setNewItem(prev => ({ ...prev, description: desc }));
-    setIsGenerating(false);
+    // Simulate description generation
+    setTimeout(() => {
+      const desc = `High quality ${newItem.category.toLowerCase()} product. ${newItem.title} - carefully selected for the best quality and value.`;
+      setNewItem(prev => ({ ...prev, description: desc }));
+      setIsGenerating(false);
+    }, 500);
   };
 
   const handleBatchGenerate = async () => {
     if (!user) return;
     setIsBatchGenerating(true);
-    try {
-      const generatedItems = await generateStoreInventory(newItem.category || "General");
+    
+    // Generate sample products
+    setTimeout(() => {
+      const category = newItem.category || "General";
+      const sampleProducts = [
+        { title: `${category} Item 1`, price: 25, keyword: `${category}1` },
+        { title: `${category} Item 2`, price: 35, keyword: `${category}2` },
+        { title: `${category} Item 3`, price: 45, keyword: `${category}3` },
+        { title: `${category} Item 4`, price: 30, keyword: `${category}4` },
+        { title: `${category} Item 5`, price: 40, keyword: `${category}5` },
+        { title: `${category} Item 6`, price: 50, keyword: `${category}6` },
+        { title: `${category} Item 7`, price: 28, keyword: `${category}7` },
+        { title: `${category} Item 8`, price: 38, keyword: `${category}8` },
+        { title: `${category} Item 9`, price: 42, keyword: `${category}9` },
+        { title: `${category} Item 10`, price: 33, keyword: `${category}10` },
+      ];
       
-      const newProducts: Product[] = generatedItems.map(item => ({
+      const newProducts: Product[] = sampleProducts.map(item => ({
         id: crypto.randomUUID(),
         title: item.title,
-        description: item.description,
-        price: item.price, // Gemini returns usually reasonable numbers, treat as USD
-        category: newItem.category || "General",
-        imageUrl: `https://picsum.photos/seed/${item.imageKeyword.replace(/\s+/g, '')}/400/400`,
+        description: `High quality ${category.toLowerCase()} product. ${item.title} - carefully selected for the best quality and value.`,
+        price: item.price,
+        category: category,
+        imageUrl: `https://picsum.photos/seed/${item.keyword}/400/400`,
         createdAt: Date.now(),
         sellerId: user.id,
         storeName: storeProfile.name
       }));
 
       setProducts(prev => [...prev, ...newProducts]);
-    } catch (e) {
-      alert("Failed to generate items. Please check API key.");
-    } finally {
       setIsBatchGenerating(false);
-    }
+    }, 1000);
   };
 
-  const handleMagicImageGenerate = async () => {
-    if (!newItem.title) {
-        alert("Please enter a product title first.");
-        return;
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      alert('Please upload an image file');
+      return;
     }
-    setIsGeneratingImage(true);
-    // Use the user's custom prompt, or fallback to a standard enhancement based on title
-    const promptToUse = magicPrompt || "professional studio lighting, clean background";
-    const image = await generateEnhancedProductImage(newItem.title, promptToUse);
-    
-    if (image) {
-        setGeneratedImage(image);
-    } else {
-        alert("Could not generate image. Please try again.");
+
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      alert('Image size should be less than 5MB');
+      return;
     }
-    setIsGeneratingImage(false);
+
+    // Create preview
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const result = reader.result as string;
+      setImagePreview(result);
+      setNewItem(prev => ({ ...prev, imageUrl: result }));
+    };
+    reader.readAsDataURL(file);
   };
 
-  const applyMagicImage = () => {
-      if (generatedImage) {
-          setNewItem(prev => ({ ...prev, imageUrl: generatedImage }));
-          setGeneratedImage(null); // Clear preview after applying
-          setMagicPrompt('');
-      }
+  const handleRemoveImage = () => {
+    setImagePreview(null);
+    setNewItem(prev => ({ ...prev, imageUrl: '' }));
   };
 
   const handleAddItem = (e: React.FormEvent) => {
@@ -146,7 +162,7 @@ export const SellerDashboard: React.FC = () => {
 
     setProducts(prev => [product, ...prev]);
     setNewItem({ title: '', category: 'General', price: '', description: '', imageUrl: '' });
-    setGeneratedImage(null);
+    setImagePreview(null);
   };
 
   const handleDelete = (id: string) => {
@@ -232,90 +248,109 @@ export const SellerDashboard: React.FC = () => {
                     required
                     value={newItem.title}
                     onChange={e => setNewItem({...newItem, title: e.target.value})}
-                    className="w-full px-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
                     placeholder={t.seller.form.placeholderTitle}
                   />
                 </div>
 
-                {/* Magic Studio Section */}
-                <div className="bg-gradient-to-br from-amber-50 to-orange-50 p-4 rounded-xl border border-amber-100">
-                    <div className="flex items-center gap-2 mb-2">
-                        <Wand2 className="w-4 h-4 text-amber-600" />
-                        <span className="text-sm font-bold text-stone-800">{t.seller.magicStudio.title}</span>
-                    </div>
-                    <p className="text-xs text-stone-500 mb-3">{t.seller.magicStudio.desc}</p>
-                    
-                    {!generatedImage ? (
-                        <>
-                            <div className="mb-3">
-                                <label className="block text-xs font-medium text-stone-600 mb-1">{t.seller.magicStudio.promptLabel}</label>
-                                <textarea 
-                                    className="w-full px-3 py-2 text-xs border border-stone-300 rounded-lg focus:ring-1 focus:ring-amber-500 bg-white"
-                                    placeholder={t.seller.magicStudio.promptPlaceholder}
-                                    rows={2}
-                                    value={magicPrompt}
-                                    onChange={(e) => setMagicPrompt(e.target.value)}
-                                />
-                                {/* Quick Styles */}
-                                <div className="flex gap-2 mt-2 overflow-x-auto pb-1 scrollbar-hide">
-                                    <button type="button" onClick={() => setMagicPrompt(t.seller.magicStudio.styles.studio)} className="whitespace-nowrap px-2 py-1 bg-white border border-stone-200 rounded text-[10px] text-stone-600 hover:border-amber-400 hover:text-amber-600 transition-colors">
-                                        {t.seller.magicStudio.styles.studio}
-                                    </button>
-                                    <button type="button" onClick={() => setMagicPrompt(t.seller.magicStudio.styles.nature)} className="whitespace-nowrap px-2 py-1 bg-white border border-stone-200 rounded text-[10px] text-stone-600 hover:border-amber-400 hover:text-amber-600 transition-colors">
-                                        {t.seller.magicStudio.styles.nature}
-                                    </button>
-                                    <button type="button" onClick={() => setMagicPrompt(t.seller.magicStudio.styles.luxury)} className="whitespace-nowrap px-2 py-1 bg-white border border-stone-200 rounded text-[10px] text-stone-600 hover:border-amber-400 hover:text-amber-600 transition-colors">
-                                        {t.seller.magicStudio.styles.luxury}
-                                    </button>
-                                </div>
-                            </div>
-                            <Button 
-                                type="button" 
-                                size="sm" 
-                                className="w-full" 
-                                onClick={handleMagicImageGenerate} 
-                                isLoading={isGeneratingImage}
-                                disabled={!newItem.title}
-                            >
-                                <Camera className="w-3 h-3 mr-2" />
-                                {t.seller.magicStudio.generateBtn}
-                            </Button>
-                        </>
-                    ) : (
-                        <div className="space-y-3">
-                            <div className="relative aspect-square rounded-lg overflow-hidden border border-stone-200 group">
-                                <img src={generatedImage} alt="Generated" className="w-full h-full object-cover" />
-                                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                                    <button type="button" onClick={() => setGeneratedImage(null)} className="text-white text-xs underline">Discard</button>
-                                </div>
-                            </div>
-                            <Button type="button" size="sm" className="w-full bg-green-600 hover:bg-green-700" onClick={applyMagicImage}>
-                                {t.seller.magicStudio.useImage}
-                            </Button>
-                        </div>
-                    )}
-                </div>
-
-                {/* Display selected image URL if any */}
-                {newItem.imageUrl && !generatedImage && (
-                    <div className="relative aspect-video rounded-lg overflow-hidden border border-stone-200 bg-stone-100">
-                        <img src={newItem.imageUrl} alt="Preview" className="w-full h-full object-cover" />
-                         <button 
+                {/* Product Image Upload */}
+                <div>
+                  <label className="block text-sm font-medium text-stone-700 mb-2">
+                    {t.seller.form.images || 'Product Image'}
+                  </label>
+                  
+                  {imagePreview || newItem.imageUrl ? (
+                    <div className="relative aspect-video rounded-lg overflow-hidden border-2 border-stone-200 bg-stone-100 group">
+                      <img 
+                        src={imagePreview || newItem.imageUrl} 
+                        alt="Product preview" 
+                        className="w-full h-full object-cover" 
+                      />
+                      <button 
+                        type="button"
+                        onClick={handleRemoveImage}
+                        className="absolute top-2 right-2 p-2 bg-white rounded-full shadow-lg hover:bg-red-50 text-stone-500 hover:text-red-600 transition-colors opacity-0 group-hover:opacity-100"
+                        title="Remove image"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                      <div className="absolute bottom-2 left-2 right-2">
+                        <label className="block w-full">
+                          <span className="sr-only">Change image</span>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            onChange={handleImageUpload}
+                            className="hidden"
+                            id="image-upload"
+                          />
+                          <Button
                             type="button"
-                            onClick={() => setNewItem(prev => ({...prev, imageUrl: ''}))}
-                            className="absolute top-2 right-2 p-1 bg-white rounded-full shadow-sm hover:bg-red-50 text-stone-500 hover:text-red-500"
-                         >
-                             <RefreshCw className="w-3 h-3" />
-                         </button>
+                            size="sm"
+                            variant="outline"
+                            className="w-full bg-white/90 backdrop-blur-sm hover:bg-white"
+                            onClick={() => document.getElementById('image-upload')?.click()}
+                          >
+                            <Upload className="w-4 h-4 mr-2" />
+                            Change Image
+                          </Button>
+                        </label>
+                      </div>
                     </div>
-                )}
+                  ) : (
+                    <label className="block">
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleImageUpload}
+                        className="hidden"
+                        id="image-upload-input"
+                      />
+                      <div className="relative border-2 border-dashed border-stone-300 rounded-xl p-8 text-center hover:border-amber-400 hover:bg-amber-50/50 transition-all cursor-pointer group">
+                        <div className="flex flex-col items-center justify-center">
+                          <div className="w-12 h-12 rounded-full bg-amber-100 flex items-center justify-center mb-3 group-hover:bg-amber-200 transition-colors">
+                            <Upload className="w-6 h-6 text-amber-600" />
+                          </div>
+                          <p className="text-sm font-medium text-stone-700 mb-1">
+                            Upload Product Image
+                          </p>
+                          <p className="text-xs text-stone-500">
+                            PNG, JPG, or WEBP (max 5MB)
+                          </p>
+                        </div>
+                      </div>
+                    </label>
+                  )}
+                  
+                  {/* Alternative: Image URL input */}
+                  <div className="mt-3">
+                    <label className="block text-xs font-medium text-stone-600 mb-1">
+                      Or enter image URL
+                    </label>
+                    <div className="relative">
+                      <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none z-10">
+                        <ImageIcon className="h-4 w-4 text-stone-400" />
+                      </div>
+                      <input
+                        type="url"
+                        value={newItem.imageUrl && !imagePreview ? newItem.imageUrl : ''}
+                        onChange={e => {
+                          if (!imagePreview) {
+                            setNewItem(prev => ({ ...prev, imageUrl: e.target.value }));
+                          }
+                        }}
+                        className="pl-11 text-sm"
+                        placeholder="https://example.com/image.jpg"
+                        disabled={!!imagePreview}
+                      />
+                    </div>
+                  </div>
+                </div>
 
                 <div>
                   <label className="block text-sm font-medium text-stone-700 mb-1">{t.seller.form.category}</label>
                   <select
                     value={newItem.category}
                     onChange={e => setNewItem({...newItem, category: e.target.value})}
-                    className="w-full px-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
                   >
                     {Object.keys(t.categories).filter(key => key !== 'All').map(key => (
                        <option key={key} value={key}>{t.categories[key as keyof typeof t.categories]}</option>
@@ -334,7 +369,6 @@ export const SellerDashboard: React.FC = () => {
                     step="0.01"
                     value={newItem.price}
                     onChange={e => setNewItem({...newItem, price: e.target.value})}
-                    className="w-full px-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
                     placeholder="0.00"
                   />
                 </div>
@@ -353,10 +387,9 @@ export const SellerDashboard: React.FC = () => {
                     </button>
                   </div>
                   <textarea
-                    rows={3}
+                    rows={4}
                     value={newItem.description}
                     onChange={e => setNewItem({...newItem, description: e.target.value})}
-                    className="w-full px-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
                     placeholder={t.seller.form.placeholderDesc}
                   />
                 </div>
@@ -430,7 +463,6 @@ export const SellerDashboard: React.FC = () => {
                   required
                   value={storeProfile.name}
                   onChange={e => setStoreProfile({...storeProfile, name: e.target.value})}
-                  className="w-full px-4 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
                 />
               </div>
 
@@ -441,7 +473,6 @@ export const SellerDashboard: React.FC = () => {
                   rows={4}
                   value={storeProfile.description}
                   onChange={e => setStoreProfile({...storeProfile, description: e.target.value})}
-                  className="w-full px-4 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
                 />
               </div>
 
@@ -449,14 +480,14 @@ export const SellerDashboard: React.FC = () => {
               <div>
                 <label className="block text-sm font-medium text-stone-700 mb-1">{t.seller.form.location}</label>
                 <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none z-10">
                     <MapPin className="h-5 w-5 text-stone-400" />
                   </div>
                   <input
                     type="text"
                     value={storeProfile.location}
                     onChange={e => setStoreProfile({...storeProfile, location: e.target.value})}
-                    className="w-full pl-10 px-4 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                    className="pl-12"
                   />
                 </div>
               </div>
@@ -466,14 +497,14 @@ export const SellerDashboard: React.FC = () => {
                 <div>
                    <label className="block text-sm font-medium text-stone-700 mb-1">Logo URL</label>
                    <div className="relative">
-                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none z-10">
                         <ImageIcon className="h-5 w-5 text-stone-400" />
                       </div>
                       <input
                         type="text"
                         value={storeProfile.logoImage}
                         onChange={e => setStoreProfile({...storeProfile, logoImage: e.target.value})}
-                        className="w-full pl-10 px-4 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                        className="pl-12"
                         placeholder="https://..."
                       />
                    </div>
@@ -486,14 +517,14 @@ export const SellerDashboard: React.FC = () => {
                 <div>
                    <label className="block text-sm font-medium text-stone-700 mb-1">Cover Image URL</label>
                    <div className="relative">
-                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none z-10">
                         <ImageIcon className="h-5 w-5 text-stone-400" />
                       </div>
                       <input
                         type="text"
                         value={storeProfile.coverImage}
                         onChange={e => setStoreProfile({...storeProfile, coverImage: e.target.value})}
-                        className="w-full pl-10 px-4 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                        className="pl-12"
                         placeholder="https://..."
                       />
                    </div>

@@ -58,15 +58,15 @@ export const Auth: React.FC<AuthProps> = ({ view, onToggleView }) => {
           <div className="rounded-md shadow-sm space-y-4">
             {view === 'register' && (
               <div>
-                <label className="block text-sm font-medium text-stone-700 mb-1">{t.auth.name}</label>
+                <label className="block text-sm font-medium text-stone-700 mb-2">{t.auth.name}</label>
                 <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none z-10">
                     <UserIcon className="h-5 w-5 text-stone-400" />
                   </div>
                   <input
                     type="text"
                     required={view === 'register'}
-                    className="appearance-none block w-full pl-10 px-3 py-2 border border-stone-300 rounded-lg placeholder-stone-400 focus:outline-none focus:ring-amber-500 focus:border-amber-500 sm:text-sm"
+                    className="pl-12"
                     placeholder={t.auth.name}
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
@@ -76,15 +76,15 @@ export const Auth: React.FC<AuthProps> = ({ view, onToggleView }) => {
             )}
             
             <div>
-              <label className="block text-sm font-medium text-stone-700 mb-1">{t.auth.email}</label>
+              <label className="block text-sm font-medium text-stone-700 mb-2">{t.auth.email}</label>
               <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none z-10">
                   <Mail className="h-5 w-5 text-stone-400" />
                 </div>
                 <input
                   type="email"
                   required
-                  className="appearance-none block w-full pl-10 px-3 py-2 border border-stone-300 rounded-lg placeholder-stone-400 focus:outline-none focus:ring-amber-500 focus:border-amber-500 sm:text-sm"
+                  className="pl-12"
                   placeholder="you@example.com"
                   value={formData.email}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
@@ -93,15 +93,15 @@ export const Auth: React.FC<AuthProps> = ({ view, onToggleView }) => {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-stone-700 mb-1">{t.auth.password}</label>
+              <label className="block text-sm font-medium text-stone-700 mb-2">{t.auth.password}</label>
               <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none z-10">
                   <Lock className="h-5 w-5 text-stone-400" />
                 </div>
                 <input
                   type="password"
                   required
-                  className="appearance-none block w-full pl-10 px-3 py-2 border border-stone-300 rounded-lg placeholder-stone-400 focus:outline-none focus:ring-amber-500 focus:border-amber-500 sm:text-sm"
+                  className="pl-12"
                   placeholder="••••••••"
                   value={formData.password}
                   onChange={(e) => setFormData({ ...formData, password: e.target.value })}

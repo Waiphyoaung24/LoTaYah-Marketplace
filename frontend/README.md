@@ -6,7 +6,7 @@ This is the Next.js frontend application for LoTaYah Marketplace, migrated from 
 
 - **Multi-language Support**: English and Myanmar (Burmese)
 - **Multi-currency Support**: MMK, THB, GBP
-- **Seller Dashboard**: Manage inventory with AI-powered product descriptions and image generation
+- **Seller Dashboard**: Manage inventory with product listings and image uploads
 - **Storefront**: Browse products by store with filtering and search
 - **Community Feed**: Social feed and merchant trust scores
 - **Shopping Cart**: Add items to cart and checkout
@@ -24,16 +24,6 @@ This is the Next.js frontend application for LoTaYah Marketplace, migrated from 
 1. Install dependencies:
 ```bash
 npm install
-```
-
-2. Set up environment variables:
-```bash
-cp .env.example .env.local
-```
-
-3. Add your Gemini API key to `.env.local`:
-```
-NEXT_PUBLIC_GEMINI_API_KEY=your_api_key_here
 ```
 
 ### Development
@@ -86,9 +76,7 @@ frontend/
 │   └── AppContext.tsx   # Main app state context
 ├── lib/                 # Utilities and types
 │   ├── types.ts         # TypeScript type definitions
-│   ├── translations.ts  # Translation strings
-│   └── services/        # API services
-│       └── geminiService.ts # Gemini AI service
+│   └── translations.ts  # Translation strings
 └── public/              # Static assets
 ```
 
@@ -98,7 +86,6 @@ frontend/
 - **TypeScript**: Type safety
 - **Tailwind CSS**: Utility-first CSS framework
 - **Lucide React**: Icon library
-- **Google Gemini AI**: Product description and image generation
 
 ## Migration Notes
 
@@ -109,10 +96,6 @@ This frontend was migrated from a Vite/React application. Key changes:
 3. **Components**: All components marked with `'use client'` for client-side interactivity
 4. **Environment Variables**: Uses `NEXT_PUBLIC_` prefix for client-side env vars
 5. **Image Optimization**: Ready for Next.js Image component (currently using regular img tags)
-
-## Environment Variables
-
-- `NEXT_PUBLIC_GEMINI_API_KEY`: Your Google Gemini API key for AI features
 
 ## License
 

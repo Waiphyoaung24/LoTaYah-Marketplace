@@ -231,14 +231,14 @@ export const Community: React.FC = () => {
                       <span className="font-bold text-amber-700">{user.name.charAt(0)}</span>
                     </div>
                     <div className="flex-grow">
-                      <div className="bg-stone-100 rounded-2xl px-4 py-2.5">
+                      <div className="bg-stone-100 rounded-2xl px-4 py-3">
                         <textarea
                           value={newPostContent}
                           onChange={(e) => setNewPostContent(e.target.value)}
                           placeholder={t.community.forum.placeholder}
-                          className="w-full bg-transparent border-none focus:ring-0 resize-none text-sm min-h-[40px] placeholder-stone-500"
+                          className="w-full bg-transparent border-none focus:ring-0 resize-none text-sm min-h-[48px] placeholder-stone-500 focus:outline-none"
                           style={{ height: 'auto' }}
-                          rows={1}
+                          rows={2}
                         />
                       </div>
                       <div className="flex justify-between items-center mt-3 pl-2">
