@@ -4,7 +4,6 @@ import "./globals.css";
 import { AppProvider } from "@/contexts/AppContext";
 import { Navigation } from "@/components/Navigation";
 import { CartDrawer } from "@/components/CartDrawer";
-import { ViewTransitions } from "next-view-transitions";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -27,21 +26,20 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-<ViewTransitions>
-
     <html lang="en">
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         <AppProvider>
-          <Navigation />
-          <main className="min-h-screen bg-stone-50">
-            {children}
-          </main>
-          <CartDrawer />
+          <div className="min-h-screen bg-gradient-to-b from-[#fdfbf7] via-[#f8f2e7] to-[#f4e5c7]">
+            <Navigation />
+            <main className="min-h-screen text-stone-900">
+              {children}
+            </main>
+            <CartDrawer />
+          </div>
         </AppProvider>
       </body>
     </html>
-    </ViewTransitions>
   );
 }

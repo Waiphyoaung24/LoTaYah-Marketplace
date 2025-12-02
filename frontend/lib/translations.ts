@@ -28,7 +28,7 @@ export const translations = {
       title: "Everything You Desire.",
       subtitle: "Welcome to LoTaYah. Whether you're setting up a digital storefront or looking for unique treasures, we connect you directly.",
       btnSell: "I want to Sell",
-      btnSellDesc: "Set up your store in seconds with AI tools.",
+      btnSellDesc: "Set up your store in seconds.",
       btnBuy: "I want to Buy",
       btnBuyDesc: "Explore unique products and shop instantly."
     },
@@ -168,7 +168,7 @@ export const translations = {
       title: "လိုတရ - သင်လိုချင်တာအကုန်ရ",
       subtitle: "LoTaYah မှ ကြိုဆိုပါတယ်။ ဒစ်ဂျစ်တယ်ဆိုင်ခန်းဖွင့်ချင်တာပဲဖြစ်ဖြစ်၊ ထူးခြားတဲ့ပစ္စည်းလေးတွေ ရှာဖွေချင်တာပဲဖြစ်ဖြစ်၊ ကျွန်ုပ်တို့ တိုက်ရိုက်ချိတ်ဆက်ပေးပါတယ်။",
       btnSell: "ရောင်းချင်ပါတယ်",
-      btnSellDesc: "AI နည်းပညာဖြင့် သင့်ဆိုင်ခန်းကို စက္ကန့်ပိုင်းအတွင်း တည်ဆောက်ပါ။",
+      btnSellDesc: "သင့်ဆိုင်ခန်းကို စက္ကန့်ပိုင်းအတွင်း တည်ဆောက်ပါ။",
       btnBuy: "ဝယ်ယူချင်ပါတယ်",
       btnBuyDesc: "ထူးခြားဆန်းသစ်သော ပစ္စည်းများကို ရှာဖွေဝယ်ယူပါ။"
     },

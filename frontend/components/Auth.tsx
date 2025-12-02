@@ -40,16 +40,20 @@ export const Auth: React.FC<AuthProps> = ({ view, onToggleView }) => {
   };
 
   return (
-    <div className="flex flex-col items-center justify-center py-12 px-4 sm:px-6 lg:px-8 bg-stone-50">
-      <div className="max-w-md w-full space-y-8 bg-white p-8 rounded-2xl shadow-lg border border-stone-100 mt-20">
-        <div className="text-center">
-          <div className="mx-auto h-12 w-12 bg-amber-100 rounded-full flex items-center justify-center mb-4">
+    <div className="flex min-h-screen items-center justify-center px-4 py-16 sm:px-6 lg:px-8">
+      <div className="mt-16 w-full max-w-md space-y-8 rounded-2xl border border-amber-100 bg-white/95 p-8 shadow-[0_18px_40px_rgba(214,158,46,0.18)] backdrop-blur">
+        <div className="space-y-3 text-center">
+          <div className="inline-flex items-center gap-2 rounded-full bg-amber-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-amber-700 ring-1 ring-amber-100">
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(16,185,129,0.9)]" />
+            <span>Secure seller access</span>
+          </div>
+          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-amber-100">
             <Lock className="h-6 w-6 text-amber-600" />
           </div>
-          <h2 className="text-3xl font-extrabold text-stone-900">
+          <h2 className="text-2xl font-semibold tracking-tight text-stone-900 sm:text-3xl">
             {view === 'login' ? t.auth.loginTitle : t.auth.registerTitle}
           </h2>
-          <p className="mt-2 text-sm text-stone-600">
+          <p className="text-sm text-stone-600">
             {t.auth.sellerRequired}
           </p>
         </div>

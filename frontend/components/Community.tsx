@@ -164,7 +164,7 @@ export const Community: React.FC = () => {
   };
 
   return (
-    <div className="bg-stone-50 min-h-screen pb-10">
+    <div className="min-h-screen pb-12">
       <div className="max-w-7xl mx-auto px-0 sm:px-6 lg:px-8 py-0 sm:py-8">
         
         {/* Mobile Header Tabs (Sticky) */}
@@ -335,9 +335,14 @@ export const Community: React.FC = () => {
             {stores.map((store, index) => {
                const score = store.reputationScore || Math.floor(Math.random() * (100 - 80) + 80);
                return (
-                <div key={store.id} className="bg-white rounded-xl shadow-sm border border-stone-200 overflow-hidden hover:shadow-md transition-shadow group">
-                  <div className="h-24 bg-stone-900 relative">
-                    <img src={store.coverImage || `https://picsum.photos/seed/${store.id}/800/200`} alt={store.name} className="w-full h-full object-cover opacity-50" />
+                <div key={store.id} className="bg-white rounded-xl shadow-sm border border-amber-100/80 overflow-hidden hover:shadow-md hover:border-amber-200 transition-shadow transition-colors group">
+                  <div className="h-24 relative bg-gradient-to-r from-amber-50 via-amber-100 to-amber-50">
+                    <img
+                      src={store.coverImage || `https://picsum.photos/seed/${store.id}/800/200`}
+                      alt={store.name}
+                      className="w-full h-full object-cover opacity-60 mix-blend-multiply"
+                    />
+                    <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-white/40 via-amber-50/40 to-transparent" />
                     <div className="absolute -bottom-10 left-6">
                        <div className="w-20 h-20 rounded-full border-4 border-white bg-white shadow-sm overflow-hidden">
                          <img src={store.logoImage || `https://picsum.photos/seed/${store.id}logo/200/200`} alt={store.name} className="w-full h-full object-cover" />
