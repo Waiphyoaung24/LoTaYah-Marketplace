@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import { ViewTransition } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { ShoppingCart, Store, Menu, X, Gem, Globe, LogOut, Coins } from 'lucide-react';
+import { ShoppingCart, Store, Menu, X, Gem, Globe, LogOut, Coins, Shield } from 'lucide-react';
 import { Button } from './Button';
 import { useApp } from '@/contexts/AppContext';
 
@@ -46,6 +46,7 @@ export const Navigation: React.FC = () => {
   const pathname = usePathname();
   const router = useRouter();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isCurrencyMenuOpen, setIsCurrencyMenuOpen] = useState(false);
 
   const handleLogout = () => {
     setUser(null);
@@ -54,10 +55,12 @@ export const Navigation: React.FC = () => {
   };
 
   const handleSellerClick = () => {
-    if (user) {
+    if (!user) {
+      router.push('/login');
+    } else if (user.storeVerified) {
       router.push('/seller');
     } else {
-      router.push('/login');
+      router.push('/seller/setup');
     }
   };
 
@@ -66,7 +69,7 @@ export const Navigation: React.FC = () => {
     <nav className="fixed top-0 left-0 right-0 z-50 w-full py-4 px-4 pointer-events-none">
       <div className="max-w-7xl mx-auto pointer-events-auto">
         {/* Changed bg-white/90 to bg-white/10 for transparency and maintained blur */}
-        <div className="flex justify-between items-center h-16 bg-white/10 backdrop-blur-md rounded-2xl border border-white/20 shadow-2xl shadow-stone-900/10 px-6 transition-all duration-300">
+        <div className="flex justify-between items-center h-16 bg-white/10 backdrop-blur-md rounded-2xl border border-black/10 shadow-2xl shadow-stone-900/10 px-6 transition-all duration-300">
           {/* Logo */}
           <Link href="/" className="flex items-center cursor-pointer group">
             <div className="relative">
@@ -91,33 +94,50 @@ export const Navigation: React.FC = () => {
             <button 
               onClick={handleSellerClick}
               className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all duration-300 ${
-                pathname === '/seller' 
+                pathname === '/seller' || pathname === '/seller/setup'
                   ? 'text-amber-600 bg-amber-50/90 backdrop-blur-md shadow-md border border-amber-200/50' 
                   : 'text-stone-700 hover:text-amber-600 hover:bg-stone-50/50 backdrop-blur-sm border border-transparent hover:border-stone-200/50'
               }`}
             >
               {t.nav.sell}
             </button>
+            {(user?.isAdmin || user?.role === 'admin') && (
+              <NavLink href="/admin" active={pathname === '/admin'}>
+                <Shield className="w-4 h-4 inline mr-1" />
+                Admin
+              </NavLink>
+            )}
           </div>
 
           {/* Right Side Actions */}
           <div className="flex items-center gap-2">
             
             {/* Currency Selector */}
-            <div className="hidden md:block relative group">
+            <div 
+              className="hidden md:block relative"
+              onMouseEnter={() => setIsCurrencyMenuOpen(true)}
+              onMouseLeave={() => setIsCurrencyMenuOpen(false)}
+            >
               <button className="flex items-center text-sm font-semibold text-stone-700 hover:text-amber-600 transition-all duration-300 px-3 py-2 rounded-xl bg-stone-50/50 backdrop-blur-sm border border-stone-200/50 hover:bg-white/90 hover:border-amber-200/50 shadow-sm hover:shadow-md">
                 <Coins className="w-4 h-4 mr-1.5" />
                 <span>{currency}</span>
               </button>
-              <div className="absolute right-0 top-full mt-2 w-28 bg-white/95 backdrop-blur-xl border border-white/30 shadow-2xl rounded-xl overflow-hidden hidden group-hover:block animate-fade-in">
+              {/* Invisible bridge to prevent gap issues */}
+              <div className="absolute right-0 top-full w-full h-2"></div>
+              <div className={`absolute right-0 top-full mt-2 w-28 bg-white/95 backdrop-blur-xl border border-white/30 shadow-2xl rounded-xl overflow-hidden transition-all duration-200 ${
+                isCurrencyMenuOpen ? 'opacity-100 visible translate-y-0' : 'opacity-0 invisible -translate-y-2 pointer-events-none'
+              }`}>
                 {(['MMK', 'THB', 'GBP'] as const).map((c) => (
                   <button
                     key={c}
-                    onClick={() => setCurrency(c)}
+                    onClick={() => {
+                      setCurrency(c);
+                      setIsCurrencyMenuOpen(false);
+                    }}
                     className={`block w-full text-left px-4 py-2.5 text-sm transition-colors ${
                       currency === c 
                         ? 'text-amber-600 font-bold bg-amber-50/80' 
-                        : 'text-stone-700 hover:bg-stone-50/80'
+                        : 'text-stone-700 hover:bg-amber-50/50'
                     }`}
                   >
                     {c}
@@ -230,7 +250,7 @@ export const Navigation: React.FC = () => {
           </Link>
           <button 
             className={`block w-full text-left px-4 py-3 rounded-xl transition-all duration-300 font-semibold ${
-              pathname === '/seller' 
+              pathname === '/seller' || pathname === '/seller/setup'
                 ? 'bg-amber-50/90 backdrop-blur-md text-amber-600 shadow-md border border-amber-200/50' 
                 : 'text-stone-700 hover:bg-stone-50/80 backdrop-blur-sm border border-transparent hover:border-stone-200/50'
             }`}
@@ -238,6 +258,20 @@ export const Navigation: React.FC = () => {
           >
             {t.nav.sell}
           </button>
+          {(user?.isAdmin || user?.role === 'admin') && (
+            <Link 
+              href="/admin"
+              className={`block w-full text-left px-4 py-3 rounded-xl transition-all duration-300 font-semibold ${
+                pathname === '/admin'
+                  ? 'bg-purple-50/90 backdrop-blur-md text-purple-600 shadow-md border border-purple-200/50' 
+                  : 'text-stone-700 hover:bg-stone-50/80 backdrop-blur-sm border border-transparent hover:border-stone-200/50'
+              }`}
+              onClick={() => setIsMobileMenuOpen(false)}
+            >
+              <Shield className="w-4 h-4 inline mr-2" />
+              Admin
+            </Link>
+          )}
           
           {/* Mobile Currency Selection */}
           <div className="px-4 py-3 flex items-center gap-2 overflow-x-auto border-t border-stone-200/50 mt-2 pt-3">

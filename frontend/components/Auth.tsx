@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { Button } from './Button';
 import { User } from '@/lib/types';
-import { Lock, Mail, User as UserIcon } from 'lucide-react';
+import { Lock, Mail, User as UserIcon, Shield, Zap, Store } from 'lucide-react';
 import { useApp } from '@/contexts/AppContext';
 import { useRouter } from 'next/navigation';
 
@@ -28,15 +28,40 @@ export const Auth: React.FC<AuthProps> = ({ view, onToggleView }) => {
 
     // Simulate API call
     setTimeout(() => {
+      // Check if logging in as admin
+      const isAdmin = formData.email.toLowerCase() === 'admin@lotayah.com';
+      // Check if logging in as verified store owner
+      const isStoreOwner = formData.email.toLowerCase() === 'storeowner@lotayah.com';
+      
       const user: User = {
-        id: crypto.randomUUID(),
-        name: formData.name || formData.email.split('@')[0],
+        id: isAdmin ? 'admin-1' : isStoreOwner ? 'store-owner-1' : crypto.randomUUID(),
+        name: isAdmin ? 'Admin User' : isStoreOwner ? 'Store Owner' : (formData.name || formData.email.split('@')[0]),
         email: formData.email,
+        isAdmin: isAdmin,
+        role: isAdmin ? 'admin' : 'user',
+        storeVerified: isStoreOwner, // Store owner is pre-verified for testing
       };
       setUser(user);
       setIsLoading(false);
-      router.push('/seller');
+      
+      // Redirect all users to landing page after login/register
+      router.push('/');
     }, 1000);
+  };
+
+  const handleQuickAdminLogin = () => {
+    setFormData({
+      name: 'Admin User',
+      email: 'admin@lotayah.com',
+      password: 'admin123'
+    });
+    // Auto submit after setting the form
+    setTimeout(() => {
+      const form = document.querySelector('form');
+      if (form) {
+        form.requestSubmit();
+      }
+    }, 100);
   };
 
   return (
@@ -57,6 +82,38 @@ export const Auth: React.FC<AuthProps> = ({ view, onToggleView }) => {
             {t.auth.sellerRequired}
           </p>
         </div>
+
+        {/* Quick Test Accounts - Only show on login view */}
+        {view === 'login' && (
+          <div className="space-y-3">
+            {/* Admin Account */}
+            <div className="rounded-xl border-2 border-purple-200 bg-gradient-to-br from-purple-50 to-indigo-50 p-4">
+              <div className="flex items-center gap-2">
+                <Shield className="w-5 h-5 text-purple-600" />
+                <p className="text-sm font-semibold text-purple-900">Test Admin Account</p>
+              </div>
+              <p className="text-xs text-purple-700 mb-3">
+                Email: <span className="font-mono font-semibold">admin@lotayah.com</span>
+                <br />
+                Password: <span className="font-mono font-semibold">admin123</span>
+              </p>
+              
+            </div>
+
+            {/* Store Owner Account */}
+            <div className="rounded-xl border-2 border-amber-200 bg-gradient-to-br from-amber-50 to-orange-50 p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <Store className="w-5 h-5 text-amber-600" />
+                <p className="text-sm font-semibold text-amber-900">Test Store Owner Account</p>
+              </div>
+              <p className="text-xs text-amber-700">
+                Email: <span className="font-mono font-semibold">storeowner@lotayah.com</span>
+                <br />
+                Password: <span className="font-mono font-semibold">store123</span>
+              </p>
+            </div>
+          </div>
+        )}
 
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
           <div className="rounded-md shadow-sm space-y-4">

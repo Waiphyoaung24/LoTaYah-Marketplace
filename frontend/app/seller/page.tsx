@@ -13,10 +13,21 @@ export default function SellerPage() {
   useEffect(() => {
     if (!user) {
       router.push('/login');
+      return;
+    }
+    
+    // Only allow verified store owners to access seller dashboard
+    if (!user.storeVerified) {
+      router.push('/seller/setup');
     }
   }, [user, router]);
 
   if (!user) {
+    return null;
+  }
+
+  // Don't show seller dashboard if not verified
+  if (!user.storeVerified) {
     return null;
   }
 

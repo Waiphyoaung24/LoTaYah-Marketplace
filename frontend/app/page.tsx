@@ -22,11 +22,7 @@ export default function Home() {
   const parallaxRef = useRef<HTMLDivElement>(null);
 
   const handleSellerClick = () => {
-    if (user) {
-      window.location.href = '/seller';
-    } else {
-      window.location.href = '/login';
-    }
+    window.location.href = '/seller/setup';
   };
 
   useGSAP(
@@ -444,7 +440,7 @@ export default function Home() {
       </section>
 
       {/* Full-width Image Section */}
-      <section className="relative h-[600px] overflow-hidden">
+      <section className="relative w-full h-screen overflow-hidden">
         <div ref={parallaxRef} className="absolute inset-0">
             <Image
             src="/imgs/pexels-rockwell-branding-agency-85164430-8910187.jpg"
@@ -455,7 +451,7 @@ export default function Home() {
           />
           <div className="absolute inset-0 bg-gradient-to-r from-stone-900/90 via-stone-900/70 to-stone-900/90"></div>
         </div>
-        <div className="relative z-10 h-full flex items-center justify-center">
+        <div className="relative z-10 h-full w-full flex items-center justify-center">
           <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
             <h2 className="text-4xl md:text-6xl font-bold text-white mb-6 drop-shadow-2xl">
               Your Marketplace Journey Starts Here
@@ -654,7 +650,7 @@ export default function Home() {
                     </Link>
                   </li>
                   <li>
-                    <Link href="/seller" className="hover:text-amber-700 hover:underline underline-offset-4">
+                    <Link href="/seller/setup" className="hover:text-amber-700 hover:underline underline-offset-4">
                       Become a seller
                     </Link>
                   </li>

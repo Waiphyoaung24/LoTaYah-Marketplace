@@ -180,7 +180,10 @@ export const Storefront: React.FC = () => {
             alt="Store Cover" 
             className="w-full h-full object-cover opacity-60"
           />
-          <div className="absolute inset-0 bg-gradient-to-t from-stone-900/90 to-transparent"></div>
+          {/* White gradient at top for nav visibility */}
+          <div className="absolute inset-0 bg-gradient-to-b from-yellow/200 via-white/10 to-transparent"></div>
+          {/* Dark gradient at bottom for text readability */}
+          <div className="absolute inset-0 bg-gradient-to-t from-stone-900/90 via-stone-900/50 to-transparent"></div>
           
           <div className="absolute bottom-0 left-0 w-full p-6 md:p-10">
             <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-end md:items-center gap-6">
