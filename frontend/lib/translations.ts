@@ -82,7 +82,7 @@ export const translations = {
       }
     },
     buyer: {
-      searchPlaceholder: "Search for anything you desire...",
+      searchPlaceholder: "Search",
       noResults: "No products found",
       noResultsHint: "Try adjusting your search or filters.",
       visitStore: "Visit Store",

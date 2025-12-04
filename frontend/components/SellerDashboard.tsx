@@ -1,11 +1,13 @@
 'use client';
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useTransition } from 'react';
 import { Product, StoreProfile } from '@/lib/types';
 import { Button } from './Button';
 import { ProductCard } from './ProductCard';
-import { Sparkles, Package, Plus, Settings, Image as ImageIcon, MapPin, Save, Store, Upload, X, Wand2 } from 'lucide-react';
+import { Sparkles, Package, Plus, Settings, Image as ImageIcon, MapPin, Save, Store, Upload, X, Wand2, AlertCircle, CheckCircle, Loader2 } from 'lucide-react';
 import { useApp } from '@/contexts/AppContext';
+import { createProduct, deleteProduct, getMyProducts, Product as DbProduct } from '@/src/actions/products';
+import { updateStoreProfile as updateStoreProfileAction, getMyStoreProfile } from '@/src/actions/stores';
 
 export const SellerDashboard: React.FC = () => {
   const { 
@@ -23,6 +25,10 @@ export const SellerDashboard: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'inventory' | 'settings'>('inventory');
   const [isGenerating, setIsGenerating] = useState(false);
   const [isBatchGenerating, setIsBatchGenerating] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [submitSuccess, setSubmitSuccess] = useState(false);
+  const [isPending, startTransition] = useTransition();
   
   // Store Profile State
   const initialStoreProfile = stores.find(s => s.id === user?.id);
@@ -42,16 +48,72 @@ export const SellerDashboard: React.FC = () => {
   // Image upload state
   const [imagePreview, setImagePreview] = useState<string | null>(null);
 
+  // Database products state
+  const [dbProducts, setDbProducts] = useState<DbProduct[]>([]);
+  const [isLoadingProducts, setIsLoadingProducts] = useState(true);
+
   useEffect(() => {
     if (initialStoreProfile) {
       setStoreProfile(initialStoreProfile);
     }
   }, [initialStoreProfile]);
 
-  // Filter products to only show those belonging to this user
+  // Load store profile and products from database on mount
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        setIsLoadingProducts(true);
+        
+        // Load store profile
+        const profileResult = await getMyStoreProfile();
+        if (profileResult.success && profileResult.store) {
+          setStoreProfile({
+            id: profileResult.store.id,
+            name: profileResult.store.name,
+            description: profileResult.store.description || '',
+            coverImage: profileResult.store.coverImage || '',
+            logoImage: profileResult.store.logoImage || '',
+            location: profileResult.store.location || '',
+            joinedDate: profileResult.store.joinedDate || new Date().getFullYear().toString()
+          });
+        }
+        
+        // Load products
+        const productsResult = await getMyProducts();
+        if (productsResult.success && productsResult.products) {
+          setDbProducts(productsResult.products);
+        }
+      } catch (error) {
+        console.error('Error loading data:', error);
+      } finally {
+        setIsLoadingProducts(false);
+      }
+    };
+
+    if (user) {
+      loadData();
+    }
+  }, [user]);
+
+  // Combine local products (for demo) with database products
   const myProducts = useMemo(() => {
-    return products.filter(p => p.sellerId === user?.id);
-  }, [products, user]);
+    const localProducts = products.filter(p => p.sellerId === user?.id);
+    
+    // Convert database products to local format
+    const convertedDbProducts: Product[] = dbProducts.map(p => ({
+      id: p.id,
+      title: p.title,
+      description: p.description || '',
+      price: p.price,
+      category: p.category?.name || 'General',
+      imageUrl: p.imageUrl || `https://picsum.photos/seed/${p.id}/400/400`,
+      createdAt: new Date(p.createdAt).getTime(),
+      sellerId: user?.id || '',
+      storeName: storeProfile.name,
+    }));
+
+    return [...convertedDbProducts, ...localProducts];
+  }, [products, dbProducts, user, storeProfile.name]);
 
   const [newItem, setNewItem] = useState({
     title: '',
@@ -140,49 +202,115 @@ export const SellerDashboard: React.FC = () => {
     setNewItem(prev => ({ ...prev, imageUrl: '' }));
   };
 
-  const handleAddItem = (e: React.FormEvent) => {
+  const handleAddItem = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newItem.title || !newItem.price || !user) return;
 
-    // Convert input price (in selected currency) to USD for storage
-    const priceInCurrency = parseFloat(newItem.price);
-    const priceInUSD = priceInCurrency / exchangeRate;
+    setIsSubmitting(true);
+    setSubmitError(null);
+    setSubmitSuccess(false);
 
-    const product: Product = {
-      id: crypto.randomUUID(),
-      title: newItem.title,
-      description: newItem.description || 'No description provided.',
-      price: priceInUSD,
-      category: newItem.category,
-      imageUrl: newItem.imageUrl || `https://picsum.photos/seed/${newItem.title.replace(/\s+/g, '')}/400/400`,
-      createdAt: Date.now(),
-      sellerId: user.id,
-      storeName: storeProfile.name
-    };
+    try {
+      // Convert input price (in selected currency) to base price for storage
+      const priceInCurrency = parseFloat(newItem.price);
+      const priceInUSD = priceInCurrency / exchangeRate;
 
-    setProducts(prev => [product, ...prev]);
-    setNewItem({ title: '', category: 'General', price: '', description: '', imageUrl: '' });
-    setImagePreview(null);
+      // Call the server action to create product
+      const result = await createProduct({
+        title: newItem.title,
+        description: newItem.description || 'No description provided.',
+        price: priceInUSD,
+        imageUrl: newItem.imageUrl || `https://picsum.photos/seed/${newItem.title.replace(/\s+/g, '')}/400/400`,
+        stock: 0,
+        isActive: true,
+        isFeatured: false,
+        tags: [newItem.category],
+      });
+
+      if (!result.success) {
+        // Handle validation errors
+        if (result.errors && result.errors.length > 0) {
+          setSubmitError(result.errors.map(e => e.message).join(', '));
+        } else {
+          setSubmitError(result.error || 'Failed to create product');
+        }
+        return;
+      }
+
+      // Success - add to local state
+      if (result.product) {
+        setDbProducts(prev => [result.product!, ...prev]);
+      }
+
+      // Reset form
+      setNewItem({ title: '', category: 'General', price: '', description: '', imageUrl: '' });
+      setImagePreview(null);
+      setSubmitSuccess(true);
+
+      // Clear success message after 3 seconds
+      setTimeout(() => setSubmitSuccess(false), 3000);
+    } catch (error) {
+      console.error('Error creating product:', error);
+      setSubmitError('An unexpected error occurred. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
-  const handleDelete = (id: string) => {
-    setProducts(prev => prev.filter(p => p.id !== id));
+  const handleDelete = async (id: string) => {
+    try {
+      // Try to delete from database first
+      const result = await deleteProduct(id);
+      
+      if (result.success) {
+        // Remove from database products state
+        setDbProducts(prev => prev.filter(p => p.id !== id));
+      } else {
+        // If not found in database, might be a local product
+        setProducts(prev => prev.filter(p => p.id !== id));
+      }
+    } catch (error) {
+      console.error('Error deleting product:', error);
+      // Fallback to local deletion
+      setProducts(prev => prev.filter(p => p.id !== id));
+    }
   };
 
-  const handleSaveProfile = (e: React.FormEvent) => {
+  const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSavingProfile(true);
-    // Simulate API save
-    setTimeout(() => {
+    setSubmitError(null);
+    
+    try {
+      const result = await updateStoreProfileAction({
+        name: storeProfile.name,
+        description: storeProfile.description,
+        logoImage: storeProfile.logoImage,
+        coverImage: storeProfile.coverImage,
+        location: storeProfile.location,
+      });
+
+      if (!result.success) {
+        setSubmitError(result.error || 'Failed to save profile');
+        return;
+      }
+
+      // Update local context state
       updateStoreProfile(storeProfile);
-      // Update store name on all existing products
+      
+      // Update store name on all existing products locally
       setProducts(prev => prev.map(p => 
         p.sellerId === user?.id ? { ...p, storeName: storeProfile.name } : p
       ));
-      setIsSavingProfile(false);
+      
       setShowSaveSuccess(true);
       setTimeout(() => setShowSaveSuccess(false), 3000);
-    }, 800);
+    } catch (error) {
+      console.error('Error saving profile:', error);
+      setSubmitError('An unexpected error occurred');
+    } finally {
+      setIsSavingProfile(false);
+    }
   };
 
   if (!user) {
@@ -239,6 +367,22 @@ export const SellerDashboard: React.FC = () => {
                 <Plus className="w-5 h-5 mr-2 text-amber-600" />
                 {t.seller.addProduct}
               </h3>
+
+              {/* Success Message */}
+              {submitSuccess && (
+                <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg flex items-center gap-2 text-green-700">
+                  <CheckCircle className="w-5 h-5" />
+                  <span className="text-sm font-medium">Product listed successfully!</span>
+                </div>
+              )}
+
+              {/* Error Message */}
+              {submitError && (
+                <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-start gap-2 text-red-700">
+                  <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
+                  <span className="text-sm">{submitError}</span>
+                </div>
+              )}
               
               <form onSubmit={handleAddItem} className="space-y-4">
                 <div>
@@ -249,6 +393,7 @@ export const SellerDashboard: React.FC = () => {
                     value={newItem.title}
                     onChange={e => setNewItem({...newItem, title: e.target.value})}
                     placeholder={t.seller.form.placeholderTitle}
+                    disabled={isSubmitting}
                   />
                 </div>
 
@@ -268,6 +413,7 @@ export const SellerDashboard: React.FC = () => {
                       <button 
                         type="button"
                         onClick={handleRemoveImage}
+                        disabled={isSubmitting}
                         className="absolute top-2 right-2 p-2 bg-white rounded-full shadow-lg hover:bg-red-50 text-stone-500 hover:text-red-600 transition-colors opacity-0 group-hover:opacity-100"
                         title="Remove image"
                       >
@@ -282,6 +428,7 @@ export const SellerDashboard: React.FC = () => {
                             onChange={handleImageUpload}
                             className="hidden"
                             id="image-upload"
+                            disabled={isSubmitting}
                           />
                           <Button
                             type="button"
@@ -289,6 +436,7 @@ export const SellerDashboard: React.FC = () => {
                             variant="outline"
                             className="w-full bg-white/90 backdrop-blur-sm hover:bg-white"
                             onClick={() => document.getElementById('image-upload')?.click()}
+                            disabled={isSubmitting}
                           >
                             <Upload className="w-4 h-4 mr-2" />
                             Change Image
@@ -304,6 +452,7 @@ export const SellerDashboard: React.FC = () => {
                         onChange={handleImageUpload}
                         className="hidden"
                         id="image-upload-input"
+                        disabled={isSubmitting}
                       />
                       <div className="relative border-2 border-dashed border-stone-300 rounded-xl p-8 text-center hover:border-amber-400 hover:bg-amber-50/50 transition-all cursor-pointer group">
                         <div className="flex flex-col items-center justify-center">
@@ -340,7 +489,7 @@ export const SellerDashboard: React.FC = () => {
                         }}
                         className="pl-11 text-sm"
                         placeholder="https://example.com/image.jpg"
-                        disabled={!!imagePreview}
+                        disabled={!!imagePreview || isSubmitting}
                       />
                     </div>
                   </div>
@@ -351,6 +500,7 @@ export const SellerDashboard: React.FC = () => {
                   <select
                     value={newItem.category}
                     onChange={e => setNewItem({...newItem, category: e.target.value})}
+                    disabled={isSubmitting}
                   >
                     {Object.keys(t.categories).filter(key => key !== 'All').map(key => (
                        <option key={key} value={key}>{t.categories[key as keyof typeof t.categories]}</option>
@@ -370,6 +520,7 @@ export const SellerDashboard: React.FC = () => {
                     value={newItem.price}
                     onChange={e => setNewItem({...newItem, price: e.target.value})}
                     placeholder="0.00"
+                    disabled={isSubmitting}
                   />
                 </div>
 
@@ -379,7 +530,7 @@ export const SellerDashboard: React.FC = () => {
                     <button
                       type="button"
                       onClick={handleGenerateDescription}
-                      disabled={!newItem.title || isGenerating}
+                      disabled={!newItem.title || isGenerating || isSubmitting}
                       className="text-xs text-amber-600 font-medium flex items-center hover:text-amber-700 disabled:opacity-50"
                     >
                       <Sparkles className="w-3 h-3 mr-1" />
@@ -391,11 +542,23 @@ export const SellerDashboard: React.FC = () => {
                     value={newItem.description}
                     onChange={e => setNewItem({...newItem, description: e.target.value})}
                     placeholder={t.seller.form.placeholderDesc}
+                    disabled={isSubmitting}
                   />
                 </div>
 
-                <Button type="submit" className="w-full">
-                  {t.seller.form.submit}
+                <Button 
+                  type="submit" 
+                  className="w-full"
+                  disabled={isSubmitting || !newItem.title || !newItem.price}
+                >
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Listing...
+                    </>
+                  ) : (
+                    t.seller.form.submit
+                  )}
                 </Button>
               </form>
             </div>
@@ -419,7 +582,12 @@ export const SellerDashboard: React.FC = () => {
               </Button>
             </div>
             
-            {myProducts.length === 0 ? (
+            {isLoadingProducts ? (
+              <div className="bg-stone-50 border-2 border-dashed border-stone-200 rounded-xl p-12 text-center">
+                <Loader2 className="w-12 h-12 text-amber-500 mx-auto mb-3 animate-spin" />
+                <p className="text-stone-500">Loading your products...</p>
+              </div>
+            ) : myProducts.length === 0 ? (
               <div className="bg-stone-50 border-2 border-dashed border-stone-200 rounded-xl p-12 text-center">
                 <Package className="w-12 h-12 text-stone-300 mx-auto mb-3" />
                 <p className="text-stone-500">{t.seller.inventory.empty}</p>
@@ -547,4 +715,3 @@ export const SellerDashboard: React.FC = () => {
     </div>
   );
 };
-

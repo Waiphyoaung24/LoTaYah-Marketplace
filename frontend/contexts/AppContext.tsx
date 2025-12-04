@@ -1,8 +1,9 @@
 'use client';
 
-import React, { createContext, useContext, useState, useCallback, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useCallback, useEffect, ReactNode } from 'react';
 import { Product, StoreProfile, CartItem, User, Post, Language, Currency } from '@/lib/types';
 import { translations } from '@/lib/translations';
+import { authService } from '@/lib/auth/auth-service';
 
 // Deterministic price generator based on product ID
 // This ensures the same product always has the same price on both server and client
@@ -138,6 +139,7 @@ interface AppContextType {
   setCurrency: React.Dispatch<React.SetStateAction<Currency>>;
   isCartOpen: boolean;
   setIsCartOpen: React.Dispatch<React.SetStateAction<boolean>>;
+  isAuthLoading: boolean;
   
   // Computed
   t: typeof translations.en;
@@ -167,6 +169,37 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [lang, setLang] = useState<Language>('en');
   const [currency, setCurrency] = useState<Currency>('MMK');
   const [isCartOpen, setIsCartOpen] = useState(false);
+  const [isAuthLoading, setIsAuthLoading] = useState(true);
+
+  // Check session on initial load to persist login state
+  useEffect(() => {
+    const checkSession = async () => {
+      try {
+        setIsAuthLoading(true);
+        const { authenticated, user: sessionUser } = await authService.initialize();
+        if (authenticated && sessionUser) {
+          setUser({
+            id: sessionUser.id,
+            name: sessionUser.name || sessionUser.email,
+            email: sessionUser.email,
+            isAdmin: sessionUser.is_admin,
+            storeVerified: sessionUser.store_verified,
+          });
+        }
+      } catch (error) {
+        console.error('Session check failed:', error);
+      } finally {
+        setIsAuthLoading(false);
+      }
+    };
+    
+    checkSession();
+    
+    // Cleanup on unmount
+    return () => {
+      authService.cleanup();
+    };
+  }, []);
 
   const t = translations[lang];
   const exchangeRate = EXCHANGE_RATES[currency];
@@ -262,6 +295,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         setCurrency,
         isCartOpen,
         setIsCartOpen,
+        isAuthLoading,
         t,
         formatPrice,
         cartTotal,

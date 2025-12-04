@@ -230,7 +230,7 @@ export const Community: React.FC = () => {
                     {/* Avatar */}
                     <div className="flex-shrink-0">
                       <div className="w-11 h-11 rounded-full bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center ring-2 ring-white shadow-sm">
-                        <span className="font-bold text-white text-sm">{user.name.charAt(0).toUpperCase()}</span>
+                        <span className="font-bold text-white text-sm">{(user.name || user.email || 'U').charAt(0).toUpperCase()}</span>
                       </div>
                     </div>
                     

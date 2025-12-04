@@ -2,10 +2,10 @@
 
 import React, { useState } from 'react';
 import { Button } from './Button';
-import { User } from '@/lib/types';
-import { Lock, Mail, User as UserIcon, Shield, Zap, Store } from 'lucide-react';
+import { Lock, Mail, User as UserIcon, Shield, Store, AlertCircle, CheckCircle } from 'lucide-react';
 import { useApp } from '@/contexts/AppContext';
 import { useRouter } from 'next/navigation';
+import { authService } from '@/lib/auth/auth-service';
 
 interface AuthProps {
   view: 'login' | 'register';
@@ -21,47 +21,81 @@ export const Auth: React.FC<AuthProps> = ({ view, onToggleView }) => {
     password: ''
   });
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
+    setError(null);
+    setSuccessMessage(null);
 
-    // Simulate API call
-    setTimeout(() => {
-      // Check if logging in as admin
-      const isAdmin = formData.email.toLowerCase() === 'admin@lotayah.com';
-      // Check if logging in as verified store owner
-      const isStoreOwner = formData.email.toLowerCase() === 'storeowner@lotayah.com';
-      
-      const user: User = {
-        id: isAdmin ? 'admin-1' : isStoreOwner ? 'store-owner-1' : crypto.randomUUID(),
-        name: isAdmin ? 'Admin User' : isStoreOwner ? 'Store Owner' : (formData.name || formData.email.split('@')[0]),
-        email: formData.email,
-        isAdmin: isAdmin,
-        role: isAdmin ? 'admin' : 'user',
-        storeVerified: isStoreOwner, // Store owner is pre-verified for testing
-      };
-      setUser(user);
-      setIsLoading(false);
-      
-      // Redirect all users to landing page after login/register
-      router.push('/');
-    }, 1000);
-  };
+    try {
+      if (view === 'login') {
+        // Call the login API endpoint
+        const result = await authService.login(formData.email, formData.password);
+        
+        if (result.error) {
+          setError(result.error);
+          setIsLoading(false);
+          return;
+        }
 
-  const handleQuickAdminLogin = () => {
-    setFormData({
-      name: 'Admin User',
-      email: 'admin@lotayah.com',
-      password: 'admin123'
-    });
-    // Auto submit after setting the form
-    setTimeout(() => {
-      const form = document.querySelector('form');
-      if (form) {
-        form.requestSubmit();
+        if (result.user) {
+          // Update the app context with the user data
+          setUser({
+            id: result.user.id,
+            name: result.user.name,
+            email: result.user.email,
+            isAdmin: result.user.is_admin,
+            role: result.user.is_admin ? 'admin' : 'user',
+            storeVerified: result.user.store_verified,
+          });
+          
+          // Redirect to landing page
+          router.push('/');
+        }
+      } else {
+        // Call the signup API endpoint
+        const result = await authService.signup(
+          formData.email, 
+          formData.password, 
+          formData.name
+        );
+        
+        if (result.error) {
+          setError(result.error);
+          setIsLoading(false);
+          return;
+        }
+
+        if (result.requiresEmailConfirmation) {
+          setSuccessMessage(result.message || 'Please check your email to confirm your account.');
+          setIsLoading(false);
+          return;
+        }
+
+        if (result.user) {
+          // Update the app context with the user data
+          setUser({
+            id: result.user.id,
+            name: result.user.name,
+            email: result.user.email,
+            isAdmin: result.user.is_admin,
+            role: result.user.is_admin ? 'admin' : 'user',
+            storeVerified: result.user.store_verified,
+          });
+          
+          // Redirect to landing page
+          router.push('/');
+        }
       }
-    }, 100);
+    } catch (err) {
+      console.error('Auth error:', err);
+      setError('An unexpected error occurred. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -83,35 +117,29 @@ export const Auth: React.FC<AuthProps> = ({ view, onToggleView }) => {
           </p>
         </div>
 
+        {/* Error Message */}
+        {error && (
+          <div className="rounded-xl border-2 border-red-200 bg-red-50 p-4 flex items-start gap-3">
+            <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+            <p className="text-sm text-red-700">{error}</p>
+          </div>
+        )}
+
+        {/* Success Message */}
+        {successMessage && (
+          <div className="rounded-xl border-2 border-green-200 bg-green-50 p-4 flex items-start gap-3">
+            <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
+            <p className="text-sm text-green-700">{successMessage}</p>
+          </div>
+        )}
+
         {/* Quick Test Accounts - Only show on login view */}
         {view === 'login' && (
           <div className="space-y-3">
             {/* Admin Account */}
-            <div className="rounded-xl border-2 border-purple-200 bg-gradient-to-br from-purple-50 to-indigo-50 p-4">
-              <div className="flex items-center gap-2">
-                <Shield className="w-5 h-5 text-purple-600" />
-                <p className="text-sm font-semibold text-purple-900">Test Admin Account</p>
-              </div>
-              <p className="text-xs text-purple-700 mb-3">
-                Email: <span className="font-mono font-semibold">admin@lotayah.com</span>
-                <br />
-                Password: <span className="font-mono font-semibold">admin123</span>
-              </p>
-              
-            </div>
+           
 
-            {/* Store Owner Account */}
-            <div className="rounded-xl border-2 border-amber-200 bg-gradient-to-br from-amber-50 to-orange-50 p-4">
-              <div className="flex items-center gap-2 mb-2">
-                <Store className="w-5 h-5 text-amber-600" />
-                <p className="text-sm font-semibold text-amber-900">Test Store Owner Account</p>
-              </div>
-              <p className="text-xs text-amber-700">
-                Email: <span className="font-mono font-semibold">storeowner@lotayah.com</span>
-                <br />
-                Password: <span className="font-mono font-semibold">store123</span>
-              </p>
-            </div>
+            
           </div>
         )}
 
@@ -127,7 +155,7 @@ export const Auth: React.FC<AuthProps> = ({ view, onToggleView }) => {
                   <input
                     type="text"
                     required={view === 'register'}
-                    className="pl-12"
+                    className="pl-12 w-full px-4 py-3 rounded-xl border-2 border-stone-200 bg-stone-50 focus:border-amber-400 focus:ring-2 focus:ring-amber-100 focus:outline-none transition-all duration-200"
                     placeholder={t.auth.name}
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
@@ -145,7 +173,7 @@ export const Auth: React.FC<AuthProps> = ({ view, onToggleView }) => {
                 <input
                   type="email"
                   required
-                  className="pl-12"
+                  className="pl-12 w-full px-4 py-3 rounded-xl border-2 border-stone-200 bg-stone-50 focus:border-amber-400 focus:ring-2 focus:ring-amber-100 focus:outline-none transition-all duration-200"
                   placeholder="you@example.com"
                   value={formData.email}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
@@ -162,12 +190,16 @@ export const Auth: React.FC<AuthProps> = ({ view, onToggleView }) => {
                 <input
                   type="password"
                   required
-                  className="pl-12"
+                  minLength={6}
+                  className="pl-12 w-full px-4 py-3 rounded-xl border-2 border-stone-200 bg-stone-50 focus:border-amber-400 focus:ring-2 focus:ring-amber-100 focus:outline-none transition-all duration-200"
                   placeholder="••••••••"
                   value={formData.password}
                   onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                 />
               </div>
+              {view === 'register' && (
+                <p className="mt-1 text-xs text-stone-500">Password must be at least 6 characters</p>
+              )}
             </div>
           </div>
 
@@ -175,7 +207,7 @@ export const Auth: React.FC<AuthProps> = ({ view, onToggleView }) => {
             <Button
               type="submit"
               isLoading={isLoading}
-              className="w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-amber-600 hover:bg-amber-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-amber-500"
+              className="w-full flex justify-center py-3 px-4 border border-transparent text-sm font-medium rounded-xl text-white bg-amber-600 hover:bg-amber-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-amber-500 transition-all duration-200"
             >
               {view === 'login' ? t.auth.submitLogin : t.auth.submitRegister}
             </Button>
@@ -197,4 +229,3 @@ export const Auth: React.FC<AuthProps> = ({ view, onToggleView }) => {
     </div>
   );
 };
-

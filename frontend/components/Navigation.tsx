@@ -7,6 +7,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { ShoppingCart, Store, Menu, X, Gem, Globe, LogOut, Coins, Shield } from 'lucide-react';
 import { Button } from './Button';
 import { useApp } from '@/contexts/AppContext';
+import { authService } from '@/lib/auth/auth-service';
 
 interface NavLinkProps {
   href: string;
@@ -48,7 +49,8 @@ export const Navigation: React.FC = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isCurrencyMenuOpen, setIsCurrencyMenuOpen] = useState(false);
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    await authService.signout();
     setUser(null);
     setCart([]);
     router.push('/');

@@ -12,22 +12,28 @@ import {
   Eye, 
   Search,
   Filter,
-  Download,
   AlertCircle,
-  Package,
   User,
-  Store,
   Mail,
-  Phone,
   MapPin,
   Calendar,
-  DollarSign
+  DollarSign,
+  Loader2,
+  Store,
+  Phone,
+  RefreshCw
 } from 'lucide-react';
 import { useApp } from '@/contexts/AppContext';
-import { VerificationRequest, Order } from '@/lib/types';
+import { Order } from '@/lib/types';
+import { 
+  getVerificationRequests, 
+  approveVerificationRequest, 
+  rejectVerificationRequest,
+  VerificationRequest 
+} from '@/src/actions/verification';
 
 export default function AdminPage() {
-  const { user, formatPrice } = useApp();
+  const { user, formatPrice, isAuthLoading } = useApp();
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<'verifications' | 'orders'>('verifications');
   const [verificationRequests, setVerificationRequests] = useState<VerificationRequest[]>([]);
@@ -37,85 +43,64 @@ export default function AdminPage() {
   const [orderFilterStatus, setOrderFilterStatus] = useState<'all' | 'pending' | 'confirmed' | 'processing' | 'shipped' | 'delivered' | 'cancelled'>('all');
   const [selectedVerification, setSelectedVerification] = useState<VerificationRequest | null>(null);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isProcessing, setIsProcessing] = useState<string | null>(null);
+  const [rejectionReason, setRejectionReason] = useState('');
+  const [showRejectModal, setShowRejectModal] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   // Check if user is admin
   useEffect(() => {
+    // Wait for auth to finish loading
+    if (isAuthLoading) {
+      return;
+    }
+
     if (!user) {
-      router.push('/login');
+      router.replace('/login');
       return;
     }
     
     const isAdmin = user.isAdmin || user.role === 'admin';
     if (!isAdmin) {
-      router.push('/');
+      router.replace('/');
       return;
     }
-  }, [user, router]);
+  }, [user, isAuthLoading, router]);
 
-  // Load dummy data
-  useEffect(() => {
-    // Dummy verification requests
-    setVerificationRequests([
-      {
-        id: 'vr-1',
-        storeId: 'store-new-1',
-        storeName: 'Myanmar Handicrafts',
-        ownerName: 'Aung Aung',
-        ownerEmail: 'aung@example.com',
-        submittedAt: Date.now() - 86400000, // 1 day ago
-        status: 'pending',
-        governmentIdUrl: '/imgs/pexels-rockwell-branding-agency-85164430-8910187.jpg',
-        storeDetails: {
-          description: 'Authentic Myanmar handicrafts and traditional items',
-          address: '123 Main Street',
-          city: 'Yangon',
-          state: 'Yangon',
-          postalCode: '11111',
-          country: 'Myanmar',
-          contactPhone: '+95 9XX XXX XXXX'
-        }
-      },
-      {
-        id: 'vr-2',
-        storeId: 'store-new-2',
-        storeName: 'Thai Silk Emporium',
-        ownerName: 'Somsak',
-        ownerEmail: 'somsak@example.com',
-        submittedAt: Date.now() - 172800000, // 2 days ago
-        status: 'pending',
-        governmentIdUrl: '/imgs/pexels-rockwell-branding-agency-85164430-8910187.jpg',
-        storeDetails: {
-          description: 'Premium Thai silk products and accessories',
-          address: '456 Sukhumvit Road',
-          city: 'Bangkok',
-          state: 'Bangkok',
-          postalCode: '10110',
-          country: 'Thailand',
-          contactPhone: '+66 2X XXX XXXX'
-        }
-      },
-      {
-        id: 'vr-3',
-        storeId: 'store-new-3',
-        storeName: 'UK Vintage Finds',
-        ownerName: 'John Smith',
-        ownerEmail: 'john@example.com',
-        submittedAt: Date.now() - 259200000, // 3 days ago
-        status: 'approved',
-        governmentIdUrl: '/imgs/pexels-rockwell-branding-agency-85164430-8910187.jpg',
-        storeDetails: {
-          description: 'Curated vintage and antique items from the UK',
-          address: '789 High Street',
-          city: 'London',
-          state: 'England',
-          postalCode: 'SW1A 1AA',
-          country: 'UK',
-          contactPhone: '+44 20 XXXX XXXX'
-        }
+  // Load verification requests from database
+  const loadVerificationRequests = async () => {
+    setIsLoading(true);
+    setLoadError(null);
+    try {
+      console.log('Loading verification requests...');
+      const result = await getVerificationRequests(filterStatus === 'all' ? undefined : filterStatus);
+      console.log('Verification requests result:', result);
+      
+      if (result.error) {
+        console.error('Error from server:', result.error);
+        setLoadError(result.error);
       }
-    ]);
+      
+      if (result.requests) {
+        setVerificationRequests(result.requests);
+      }
+    } catch (error) {
+      console.error('Error loading verification requests:', error);
+      setLoadError('Failed to load verification requests');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
-    // Dummy orders
+  useEffect(() => {
+    if (user?.isAdmin || user?.role === 'admin') {
+      loadVerificationRequests();
+    }
+  }, [user, filterStatus]);
+
+  // Load dummy orders (keep for now)
+  useEffect(() => {
     setOrders([
       {
         id: 'order-1',
@@ -132,7 +117,7 @@ export default function AdminPage() {
         totalAmount: 85,
         status: 'pending',
         paymentStatus: 'pending',
-        createdAt: Date.now() - 3600000, // 1 hour ago
+        createdAt: Date.now() - 3600000,
         updatedAt: Date.now() - 3600000,
         shippingAddress: {
           street: '123 Customer Street',
@@ -143,66 +128,47 @@ export default function AdminPage() {
         },
         notes: 'Please handle with care'
       },
-      {
-        id: 'order-2',
-        orderNumber: 'ORD-2024-002',
-        customerId: 'customer-2',
-        customerName: 'Bob Williams',
-        customerEmail: 'bob@example.com',
-        storeId: 'store-2',
-        storeName: 'Yangon Tech Hub',
-        items: [
-          { productId: 'p3', productName: 'Wireless Headphones', quantity: 1, price: 89 }
-        ],
-        totalAmount: 89,
-        status: 'confirmed',
-        paymentStatus: 'paid',
-        createdAt: Date.now() - 7200000, // 2 hours ago
-        updatedAt: Date.now() - 1800000,
-        shippingAddress: {
-          street: '456 Buyer Avenue',
-          city: 'Mandalay',
-          state: 'Mandalay',
-          postalCode: '22222',
-          country: 'Myanmar'
-        }
-      },
-      {
-        id: 'order-3',
-        orderNumber: 'ORD-2024-003',
-        customerId: 'customer-3',
-        customerName: 'Charlie Brown',
-        customerEmail: 'charlie@example.com',
-        storeId: 'store-3',
-        storeName: 'Mandalay Silk & Fashion',
-        items: [
-          { productId: 'p4', productName: 'Silk Scarf', quantity: 3, price: 45 }
-        ],
-        totalAmount: 135,
-        status: 'processing',
-        paymentStatus: 'paid',
-        createdAt: Date.now() - 10800000, // 3 hours ago
-        updatedAt: Date.now() - 3600000,
-        shippingAddress: {
-          street: '789 Shopper Road',
-          city: 'Bangkok',
-          state: 'Bangkok',
-          postalCode: '10110',
-          country: 'Thailand'
-        }
-      }
     ]);
   }, []);
 
-  const handleVerificationAction = (requestId: string, action: 'approve' | 'reject') => {
-    setVerificationRequests(prev =>
-      prev.map(req =>
-        req.id === requestId
-          ? { ...req, status: action === 'approve' ? 'approved' : 'rejected' }
-          : req
-      )
-    );
-    setSelectedVerification(null);
+  const handleApprove = async (requestId: string) => {
+    setIsProcessing(requestId);
+    try {
+      const result = await approveVerificationRequest(requestId);
+      if (result.success) {
+        // Refresh the list
+        await loadVerificationRequests();
+        setSelectedVerification(null);
+      } else {
+        alert(result.error || 'Failed to approve request');
+      }
+    } catch (error) {
+      console.error('Error approving request:', error);
+      alert('An error occurred while approving the request');
+    } finally {
+      setIsProcessing(null);
+    }
+  };
+
+  const handleReject = async (requestId: string) => {
+    setIsProcessing(requestId);
+    try {
+      const result = await rejectVerificationRequest(requestId, rejectionReason || undefined);
+      if (result.success) {
+        // Refresh the list
+        await loadVerificationRequests();
+        setSelectedVerification(null);
+        setShowRejectModal(null);
+        setRejectionReason('');
+      } else {
+        alert(result.error || 'Failed to reject request');
+      }
+    } catch (error) {
+      console.error('Error rejecting request:', error);
+      alert('An error occurred while rejecting the request');
+    } finally {
+      setIsProcessing(null);
+    }
   };
 
   const handleOrderStatusUpdate = (orderId: string, newStatus: Order['status']) => {
@@ -228,9 +194,9 @@ export default function AdminPage() {
 
   const filteredVerifications = verificationRequests.filter(req => {
     const matchesSearch = req.storeName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         req.ownerName.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesFilter = filterStatus === 'all' || req.status === filterStatus;
-    return matchesSearch && matchesFilter;
+                         req.ownerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         req.ownerEmail.toLowerCase().includes(searchTerm.toLowerCase());
+    return matchesSearch;
   });
 
   const filteredOrders = orders.filter(order => {
@@ -240,6 +206,15 @@ export default function AdminPage() {
     const matchesFilter = orderFilterStatus === 'all' || order.status === orderFilterStatus;
     return matchesSearch && matchesFilter;
   });
+
+  // Show loading while auth is being checked
+  if (isAuthLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-stone-50 via-amber-50/30 to-stone-50 pt-24 pb-16 flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-amber-600" />
+      </div>
+    );
+  }
 
   if (!user || (!user.isAdmin && user.role !== 'admin')) {
     return null;
@@ -257,7 +232,7 @@ export default function AdminPage() {
               </div>
               <div>
                 <h1 className="text-4xl font-bold text-stone-900">Admin Dashboard</h1>
-                <p className="text-stone-600 mt-1">Manage verifications and orders</p>
+                <p className="text-stone-600 mt-1">Manage store verifications and orders</p>
               </div>
             </div>
           </div>
@@ -273,7 +248,7 @@ export default function AdminPage() {
               }`}
             >
               <Shield className="w-4 h-4 inline mr-2" />
-              Verification Requests ({verificationRequests.filter(v => v.status === 'pending').length})
+              Store Verifications ({verificationRequests.filter(v => v.status === 'pending').length} pending)
             </button>
             <button
               onClick={() => setActiveTab('orders')}
@@ -284,7 +259,7 @@ export default function AdminPage() {
               }`}
             >
               <ShoppingBag className="w-4 h-4 inline mr-2" />
-              Orders & Transactions ({orders.length})
+              Orders ({orders.length})
             </button>
           </div>
 
@@ -307,9 +282,9 @@ export default function AdminPage() {
                   value={activeTab === 'verifications' ? filterStatus : orderFilterStatus}
                   onChange={(e) => {
                     if (activeTab === 'verifications') {
-                      setFilterStatus(e.target.value as any);
+                      setFilterStatus(e.target.value as 'all' | 'pending' | 'approved' | 'rejected');
                     } else {
-                      setOrderFilterStatus(e.target.value as any);
+                      setOrderFilterStatus(e.target.value as typeof orderFilterStatus);
                     }
                   }}
                   className="px-4 py-2.5 rounded-xl border-2 border-stone-200 bg-stone-50 focus:border-amber-400 focus:ring-2 focus:ring-amber-100 focus:outline-none"
@@ -333,6 +308,16 @@ export default function AdminPage() {
                     </>
                   )}
                 </select>
+                {activeTab === 'verifications' && (
+                  <button
+                    onClick={loadVerificationRequests}
+                    disabled={isLoading}
+                    className="p-2.5 rounded-xl border-2 border-stone-200 bg-stone-50 hover:bg-stone-100 transition-colors"
+                    title="Refresh"
+                  >
+                    <RefreshCw className={`w-5 h-5 text-stone-600 ${isLoading ? 'animate-spin' : ''}`} />
+                  </button>
+                )}
               </div>
             </div>
           </div>
@@ -340,10 +325,34 @@ export default function AdminPage() {
           {/* Verification Requests Tab */}
           {activeTab === 'verifications' && (
             <div className="space-y-4">
-              {filteredVerifications.length === 0 ? (
+              {isLoading ? (
+                <div className="bg-white/90 backdrop-blur-xl rounded-2xl shadow-lg border border-stone-200/50 p-12 text-center">
+                  <Loader2 className="w-12 h-12 text-amber-500 mx-auto mb-4 animate-spin" />
+                  <p className="text-stone-600 text-lg">Loading verification requests...</p>
+                </div>
+              ) : loadError ? (
+                <div className="bg-red-50 backdrop-blur-xl rounded-2xl shadow-lg border border-red-200 p-12 text-center">
+                  <AlertCircle className="w-16 h-16 text-red-400 mx-auto mb-4" />
+                  <p className="text-red-700 text-lg font-semibold mb-2">Error Loading Data</p>
+                  <p className="text-red-600">{loadError}</p>
+                  <p className="text-sm text-red-500 mt-4">
+                    Check that RLS policies allow admin access to verification_requests table.
+                    See <code className="bg-red-100 px-1 rounded">supabase/fix-verification-rls.sql</code>
+                  </p>
+                  <button 
+                    onClick={loadVerificationRequests}
+                    className="mt-4 px-4 py-2 bg-red-600 text-white rounded-xl hover:bg-red-700 transition-colors"
+                  >
+                    Retry
+                  </button>
+                </div>
+              ) : filteredVerifications.length === 0 ? (
                 <div className="bg-white/90 backdrop-blur-xl rounded-2xl shadow-lg border border-stone-200/50 p-12 text-center">
                   <Shield className="w-16 h-16 text-stone-300 mx-auto mb-4" />
                   <p className="text-stone-600 text-lg">No verification requests found</p>
+                  <p className="text-stone-400 text-sm mt-2">
+                    {filterStatus !== 'all' ? `No ${filterStatus} requests` : 'When sellers submit store setup requests, they will appear here'}
+                  </p>
                 </div>
               ) : (
                 filteredVerifications.map((request) => (
@@ -378,18 +387,24 @@ export default function AdminPage() {
                                 <Mail className="w-4 h-4" />
                                 {request.ownerEmail}
                               </p>
+                              {request.contactPhone && (
+                                <p className="flex items-center gap-2">
+                                  <Phone className="w-4 h-4" />
+                                  {request.contactPhone}
+                                </p>
+                              )}
                               <p className="flex items-center gap-2">
                                 <MapPin className="w-4 h-4" />
-                                {request.storeDetails.city}, {request.storeDetails.country}
+                                {request.city}, {request.country}
                               </p>
                               <p className="flex items-center gap-2">
                                 <Calendar className="w-4 h-4" />
-                                Submitted: {new Date(request.submittedAt).toLocaleDateString()}
+                                Submitted: {new Date(request.createdAt).toLocaleDateString()}
                               </p>
                             </div>
                           </div>
                         </div>
-                        <p className="text-stone-700 mb-4">{request.storeDetails.description}</p>
+                        <p className="text-stone-700 mb-4 line-clamp-2">{request.storeDescription}</p>
                       </div>
                       <div className="flex flex-col gap-2">
                         <button
@@ -402,15 +417,21 @@ export default function AdminPage() {
                         {request.status === 'pending' && (
                           <div className="flex gap-2">
                             <button
-                              onClick={() => handleVerificationAction(request.id, 'approve')}
-                              className="flex-1 px-4 py-2 bg-green-600 text-white rounded-xl font-semibold hover:bg-green-700 transition-colors flex items-center justify-center gap-2"
+                              onClick={() => handleApprove(request.id)}
+                              disabled={isProcessing === request.id}
+                              className="flex-1 px-4 py-2 bg-green-600 text-white rounded-xl font-semibold hover:bg-green-700 transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
                             >
-                              <CheckCircle className="w-4 h-4" />
+                              {isProcessing === request.id ? (
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                              ) : (
+                                <CheckCircle className="w-4 h-4" />
+                              )}
                               Approve
                             </button>
                             <button
-                              onClick={() => handleVerificationAction(request.id, 'reject')}
-                              className="flex-1 px-4 py-2 bg-red-600 text-white rounded-xl font-semibold hover:bg-red-700 transition-colors flex items-center justify-center gap-2"
+                              onClick={() => setShowRejectModal(request.id)}
+                              disabled={isProcessing === request.id}
+                              className="flex-1 px-4 py-2 bg-red-600 text-white rounded-xl font-semibold hover:bg-red-700 transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
                             >
                               <XCircle className="w-4 h-4" />
                               Reject
@@ -585,60 +606,122 @@ export default function AdminPage() {
                   <div>
                     <h3 className="text-lg font-bold text-stone-900 mb-4">Store Information</h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <p className="text-sm text-stone-600 mb-1">Store Name</p>
-                        <p className="font-semibold">{selectedVerification.storeName}</p>
-                      </div>
-                      <div>
-                        <p className="text-sm text-stone-600 mb-1">Owner Name</p>
-                        <p className="font-semibold">{selectedVerification.ownerName}</p>
-                      </div>
-                      <div>
-                        <p className="text-sm text-stone-600 mb-1">Email</p>
-                        <p className="font-semibold">{selectedVerification.ownerEmail}</p>
-                      </div>
+<div>
+                      <p className="text-sm text-stone-600 mb-1">Store Name</p>
+                      <p className="font-semibold">{selectedVerification.storeName}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-stone-600 mb-1">Owner Name</p>
+                      <p className="font-semibold">{selectedVerification.ownerName}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-stone-600 mb-1">Email</p>
+                      <p className="font-semibold">{selectedVerification.ownerEmail}</p>
+                    </div>
+                    {selectedVerification.contactPhone && (
                       <div>
                         <p className="text-sm text-stone-600 mb-1">Phone</p>
-                        <p className="font-semibold">{selectedVerification.storeDetails.contactPhone}</p>
+                        <p className="font-semibold">{selectedVerification.contactPhone}</p>
                       </div>
+                    )}
                     </div>
                     <div className="mt-4">
                       <p className="text-sm text-stone-600 mb-1">Description</p>
-                      <p className="font-semibold">{selectedVerification.storeDetails.description}</p>
+                      <p className="font-semibold">{selectedVerification.storeDescription}</p>
                     </div>
                     <div className="mt-4">
                       <p className="text-sm text-stone-600 mb-1">Address</p>
                       <p className="font-semibold">
-                        {selectedVerification.storeDetails.address}, {selectedVerification.storeDetails.city}, {selectedVerification.storeDetails.state} {selectedVerification.storeDetails.postalCode}, {selectedVerification.storeDetails.country}
+                        {selectedVerification.address}, {selectedVerification.city}, {selectedVerification.state} {selectedVerification.postalCode}, {selectedVerification.country}
                       </p>
                     </div>
                   </div>
-                  <div>
-                    <h3 className="text-lg font-bold text-stone-900 mb-4">Government ID</h3>
-                    <div className="border-2 border-stone-200 rounded-xl overflow-hidden">
-                      <img
-                        src={selectedVerification.governmentIdUrl}
-                        alt="Government ID"
-                        className="w-full h-auto"
-                      />
+                  {selectedVerification.governmentIdUrl && (
+                    <div>
+                      <h3 className="text-lg font-bold text-stone-900 mb-4">Government ID</h3>
+                      <div className="border-2 border-stone-200 rounded-xl overflow-hidden">
+                        <img
+                          src={selectedVerification.governmentIdUrl}
+                          alt="Government ID"
+                          className="w-full h-auto max-h-96 object-contain"
+                        />
+                      </div>
                     </div>
-                  </div>
+                  )}
                   {selectedVerification.status === 'pending' && (
                     <div className="flex gap-3 pt-4 border-t border-stone-200">
                       <button
-                        onClick={() => handleVerificationAction(selectedVerification.id, 'approve')}
-                        className="flex-1 px-6 py-3 bg-green-600 text-white rounded-xl font-semibold hover:bg-green-700 transition-colors"
+                        onClick={() => handleApprove(selectedVerification.id)}
+                        disabled={isProcessing === selectedVerification.id}
+                        className="flex-1 px-6 py-3 bg-green-600 text-white rounded-xl font-semibold hover:bg-green-700 transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
                       >
-                        Approve Verification
+                        {isProcessing === selectedVerification.id ? (
+                          <Loader2 className="w-5 h-5 animate-spin" />
+                        ) : (
+                          <CheckCircle className="w-5 h-5" />
+                        )}
+                        Approve & Create Store
                       </button>
                       <button
-                        onClick={() => handleVerificationAction(selectedVerification.id, 'reject')}
-                        className="flex-1 px-6 py-3 bg-red-600 text-white rounded-xl font-semibold hover:bg-red-700 transition-colors"
+                        onClick={() => {
+                          setShowRejectModal(selectedVerification.id);
+                        }}
+                        disabled={isProcessing === selectedVerification.id}
+                        className="flex-1 px-6 py-3 bg-red-600 text-white rounded-xl font-semibold hover:bg-red-700 transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
                       >
-                        Reject Verification
+                        <XCircle className="w-5 h-5" />
+                        Reject
                       </button>
                     </div>
                   )}
+                  {selectedVerification.status === 'rejected' && selectedVerification.rejectionReason && (
+                    <div className="bg-red-50 rounded-xl p-4">
+                      <h4 className="font-semibold text-red-900 mb-2">Rejection Reason:</h4>
+                      <p className="text-red-700">{selectedVerification.rejectionReason}</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Reject Modal */}
+          {showRejectModal && (
+            <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[60] flex items-center justify-center p-4">
+              <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6">
+                <h3 className="text-xl font-bold text-stone-900 mb-4">Reject Verification Request</h3>
+                <p className="text-stone-600 mb-4">
+                  Please provide a reason for rejection (optional). This will be shown to the seller.
+                </p>
+                <textarea
+                  value={rejectionReason}
+                  onChange={(e) => setRejectionReason(e.target.value)}
+                  placeholder="e.g., Incomplete documentation, unclear ID photo..."
+                  className="w-full px-4 py-3 rounded-xl border-2 border-stone-200 bg-stone-50 focus:border-amber-400 focus:ring-2 focus:ring-amber-100 focus:outline-none resize-none"
+                  rows={4}
+                />
+                <div className="flex gap-3 mt-4">
+                  <button
+                    onClick={() => {
+                      setShowRejectModal(null);
+                      setRejectionReason('');
+                    }}
+                    className="flex-1 px-4 py-2 bg-stone-100 text-stone-700 rounded-xl font-semibold hover:bg-stone-200 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={() => handleReject(showRejectModal)}
+                    disabled={isProcessing === showRejectModal}
+                    className="flex-1 px-4 py-2 bg-red-600 text-white rounded-xl font-semibold hover:bg-red-700 transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+                  >
+                    {isProcessing === showRejectModal ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <XCircle className="w-4 h-4" />
+                    )}
+                    Confirm Reject
+                  </button>
                 </div>
               </div>
             </div>
@@ -716,4 +799,3 @@ export default function AdminPage() {
     </ViewTransition>
   );
 }
-

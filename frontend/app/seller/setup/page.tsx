@@ -3,12 +3,15 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { ViewTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import { Upload, X, CheckCircle, Store, User, Mail, Phone, MapPin, FileText, Image as ImageIcon, AlertCircle, ChevronDown } from 'lucide-react';
+import { Upload, X, CheckCircle, Store, User, Mail, Phone, MapPin, FileText, AlertCircle, ChevronDown, Loader2, Clock, XCircle, RefreshCw } from 'lucide-react';
 import { useApp } from '@/contexts/AppContext';
+import { submitVerificationRequest, getMyVerificationStatus, VerificationRequest } from '@/src/actions/verification';
+import { validateStoreSetup, ValidationError } from '@/src/lib/store-validation';
 
 interface FormData {
   storeName: string;
   storeDescription: string;
+  ownerName: string;
   contactEmail: string;
   contactPhone: string;
   address: string;
@@ -21,15 +24,21 @@ interface FormData {
 }
 
 export default function StoreSetupPage() {
-  const { user, t, setUser } = useApp();
+  const { user, t, setUser, isAuthLoading } = useApp();
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [errors, setErrors] = useState<Partial<Record<keyof FormData, string>>>({});
+  const [isLoading, setIsLoading] = useState(true);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [existingRequest, setExistingRequest] = useState<VerificationRequest | null>(null);
+  const [hasStore, setHasStore] = useState(false);
+  const hasCheckedStatus = useRef(false);
   const [formData, setFormData] = useState<FormData>({
     storeName: '',
     storeDescription: '',
-    contactEmail: user?.email || '',
+    ownerName: '',
+    contactEmail: '',
     contactPhone: '',
     address: '',
     city: '',
@@ -40,103 +49,204 @@ export default function StoreSetupPage() {
     governmentIdPreview: null,
   });
 
-  // Redirect to login if user is not authenticated
+  // Check verification status on load
   useEffect(() => {
-    if (!user) {
-      router.push('/login');
+    // Wait for auth to finish loading
+    if (isAuthLoading) {
       return;
     }
-    
-    // If user is already verified, redirect to seller dashboard
-    if (user.storeVerified) {
-      router.push('/seller');
-    }
-  }, [user, router]);
 
-  // Update email when user is available
+    // Redirect to login if not authenticated
+    if (!user) {
+      router.replace('/login');
+      return;
+    }
+
+    // Only check status once
+    if (hasCheckedStatus.current) {
+      return;
+    }
+    hasCheckedStatus.current = true;
+
+    const checkStatus = async () => {
+      try {
+        const status = await getMyVerificationStatus();
+        if (status.hasStore) {
+          setHasStore(true);
+          router.replace('/seller');
+          return;
+        }
+        if (status.hasRequest && status.request) {
+          setExistingRequest(status.request);
+        }
+      } catch (error) {
+        console.error('Error checking status:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    checkStatus();
+  }, [user, isAuthLoading, router]);
+
+  // Update email and name when user is available
   useEffect(() => {
-    if (user?.email && !formData.contactEmail) {
-      setFormData(prev => ({ ...prev, contactEmail: user.email }));
+    if (user) {
+      setFormData(prev => ({
+        ...prev,
+        contactEmail: prev.contactEmail || user.email || '',
+        ownerName: prev.ownerName || user.name || '',
+      }));
     }
-  }, [user, formData.contactEmail]);
+  }, [user]);
 
-  // Don't render the page if user is not logged in or already verified
-  if (!user || user.storeVerified) {
+  // Show loading while auth is being checked or page is loading
+  if (isAuthLoading || isLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-stone-50 via-amber-50/30 to-stone-50 pt-24 pb-16 flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-amber-600" />
+      </div>
+    );
+  }
+
+  // User not authenticated (should redirect above)
+  if (!user) {
     return null;
   }
 
+  // User already has a store
+  if (hasStore) {
+    return null;
+  }
+
+  // Show pending verification status
+  if (existingRequest && existingRequest.status === 'pending') {
+    return (
+      <ViewTransition>
+        <div className="min-h-screen bg-gradient-to-b from-stone-50 via-amber-50/30 to-stone-50 pt-24 pb-16">
+          <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="bg-white/90 backdrop-blur-xl rounded-3xl shadow-2xl border border-stone-200/50 p-8 md:p-12 text-center">
+              <div className="inline-flex items-center justify-center w-20 h-20 bg-amber-100 rounded-full mb-6">
+                <Clock className="w-10 h-10 text-amber-600" />
+              </div>
+              <h1 className="text-3xl font-bold text-stone-900 mb-4">Verification Pending</h1>
+              <p className="text-lg text-stone-600 mb-8">
+                Your store verification request for <strong>{existingRequest.storeName}</strong> is under review. 
+                Our team will verify your documents and get back to you within 1-3 business days.
+              </p>
+              <div className="bg-amber-50 rounded-xl p-6 text-left mb-8">
+                <h3 className="font-semibold text-stone-900 mb-3">Request Details:</h3>
+                <div className="space-y-2 text-sm text-stone-600">
+                  <p><strong>Store Name:</strong> {existingRequest.storeName}</p>
+                  <p><strong>Location:</strong> {existingRequest.city}, {existingRequest.country}</p>
+                  <p><strong>Submitted:</strong> {new Date(existingRequest.createdAt).toLocaleDateString()}</p>
+                </div>
+              </div>
+              <button
+                onClick={() => router.push('/')}
+                className="px-6 py-3 bg-stone-100 text-stone-700 rounded-xl font-semibold hover:bg-stone-200 transition-colors"
+              >
+                Return to Home
+              </button>
+            </div>
+          </div>
+        </div>
+      </ViewTransition>
+    );
+  }
+
+  // Show rejected status with option to resubmit
+  if (existingRequest && existingRequest.status === 'rejected') {
+    return (
+      <ViewTransition>
+        <div className="min-h-screen bg-gradient-to-b from-stone-50 via-amber-50/30 to-stone-50 pt-24 pb-16">
+          <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="bg-white/90 backdrop-blur-xl rounded-3xl shadow-2xl border border-stone-200/50 p-8 md:p-12 text-center">
+              <div className="inline-flex items-center justify-center w-20 h-20 bg-red-100 rounded-full mb-6">
+                <XCircle className="w-10 h-10 text-red-600" />
+              </div>
+              <h1 className="text-3xl font-bold text-stone-900 mb-4">Verification Rejected</h1>
+              <p className="text-lg text-stone-600 mb-4">
+                Unfortunately, your store verification request was not approved.
+              </p>
+              {existingRequest.rejectionReason && (
+                <div className="bg-red-50 rounded-xl p-6 text-left mb-8">
+                  <h3 className="font-semibold text-red-900 mb-2">Reason:</h3>
+                  <p className="text-red-700">{existingRequest.rejectionReason}</p>
+                </div>
+              )}
+              <p className="text-stone-600 mb-8">
+                You can submit a new verification request with updated information.
+              </p>
+              <button
+                onClick={() => setExistingRequest(null)}
+                className="px-8 py-3 rounded-xl font-semibold text-white bg-gradient-to-r from-amber-600 to-orange-500 hover:from-amber-700 hover:to-orange-600 transition-all duration-200 shadow-lg shadow-amber-500/30 flex items-center justify-center gap-2 mx-auto"
+              >
+                <RefreshCw className="w-5 h-5" />
+                Submit New Request
+              </button>
+            </div>
+          </div>
+        </div>
+      </ViewTransition>
+    );
+  }
+
   const validateForm = (): boolean => {
-    const newErrors: Partial<Record<keyof FormData, string>> = {};
+    const validationErrors = validateStoreSetup({
+      storeName: formData.storeName,
+      storeDescription: formData.storeDescription,
+      contactEmail: formData.contactEmail,
+      contactPhone: formData.contactPhone,
+      address: formData.address,
+      city: formData.city,
+      state: formData.state,
+      postalCode: formData.postalCode,
+      country: formData.country,
+    });
 
-    if (!formData.storeName.trim()) {
-      newErrors.storeName = 'Store name is required';
-    } else if (formData.storeName.trim().length < 3) {
-      newErrors.storeName = 'Store name must be at least 3 characters';
+    // Add client-side validation for owner name
+    if (!formData.ownerName?.trim()) {
+      validationErrors.push({ field: 'ownerName', message: 'Owner name is required' });
+    } else if (formData.ownerName.trim().length < 2) {
+      validationErrors.push({ field: 'ownerName', message: 'Owner name must be at least 2 characters' });
     }
 
-    if (!formData.storeDescription.trim()) {
-      newErrors.storeDescription = 'Store description is required';
-    } else if (formData.storeDescription.trim().length < 20) {
-      newErrors.storeDescription = 'Store description must be at least 20 characters';
-    }
-
-    if (!formData.contactEmail.trim()) {
-      newErrors.contactEmail = 'Contact email is required';
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.contactEmail)) {
-      newErrors.contactEmail = 'Please enter a valid email address';
-    }
-
-    if (!formData.contactPhone.trim()) {
-      newErrors.contactPhone = 'Contact phone is required';
-    } else if (!/^[\d\s\-\+\(\)]+$/.test(formData.contactPhone)) {
-      newErrors.contactPhone = 'Please enter a valid phone number';
-    }
-
-    if (!formData.address.trim()) {
-      newErrors.address = 'Address is required';
-    }
-
-    if (!formData.city.trim()) {
-      newErrors.city = 'City is required';
-    }
-
-    if (!formData.state.trim()) {
-      newErrors.state = 'State/Region is required';
-    }
-
-    if (!formData.postalCode.trim()) {
-      newErrors.postalCode = 'Postal code is required';
-    }
-
-    if (!formData.country.trim()) {
-      newErrors.country = 'Country is required';
-    }
-
+    // Add client-side validation for file (required)
     if (!formData.governmentId) {
-      newErrors.governmentId = 'Government ID photo is required';
+      validationErrors.push({ field: 'governmentId', message: 'Government ID photo is required' });
     }
+
+    // Convert to error object
+    const newErrors: Record<string, string> = {};
+    validationErrors.forEach((error: ValidationError) => {
+      newErrors[error.field] = error.message;
+    });
 
     setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+    return validationErrors.length === 0;
   };
 
   const handleInputChange = (field: keyof FormData, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
     if (errors[field]) {
-      setErrors(prev => ({ ...prev, [field]: undefined }));
+      setErrors(prev => {
+        const newErrors = { ...prev };
+        delete newErrors[field];
+        return newErrors;
+      });
     }
+    setSubmitError(null);
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      // Validate file type
       if (!file.type.startsWith('image/')) {
         setErrors(prev => ({ ...prev, governmentId: 'Please upload an image file' }));
         return;
       }
 
-      // Validate file size (max 5MB)
       if (file.size > 5 * 1024 * 1024) {
         setErrors(prev => ({ ...prev, governmentId: 'File size must be less than 5MB' }));
         return;
@@ -149,7 +259,11 @@ export default function StoreSetupPage() {
           governmentId: file,
           governmentIdPreview: reader.result as string,
         }));
-        setErrors(prev => ({ ...prev, governmentId: undefined }));
+        setErrors(prev => {
+          const newErrors = { ...prev };
+          delete newErrors.governmentId;
+          return newErrors;
+        });
       };
       reader.readAsDataURL(file);
     }
@@ -164,11 +278,11 @@ export default function StoreSetupPage() {
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
-    setErrors(prev => ({ ...prev, governmentId: undefined }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setSubmitError(null);
 
     if (!validateForm()) {
       return;
@@ -177,23 +291,57 @@ export default function StoreSetupPage() {
     setIsSubmitting(true);
 
     try {
-      // TODO: Implement API call to submit store setup
-      // For now, just simulate submission
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      // For now, use the preview as URL (in production, upload to storage first)
+      const governmentIdUrl = formData.governmentIdPreview || '';
 
-      // Mark user as verified after successful submission
-      if (user) {
-        setUser({
-          ...user,
-          storeVerified: true,
-        });
+      if (!governmentIdUrl) {
+        setSubmitError('Government ID photo is required');
+        return;
       }
 
-      // After successful submission, redirect to seller dashboard
-      router.push('/seller');
+      // Submit verification request (NOT create store directly)
+      const result = await submitVerificationRequest({
+        storeName: formData.storeName,
+        ownerName: formData.ownerName,
+        ownerEmail: formData.contactEmail,
+        contactPhone: formData.contactPhone,
+        governmentIdUrl: governmentIdUrl,
+        storeDescription: formData.storeDescription,
+        address: formData.address,
+        city: formData.city,
+        state: formData.state,
+        postalCode: formData.postalCode,
+        country: formData.country,
+      });
+
+      if (!result.success) {
+        setSubmitError(result.error || 'Failed to submit verification request');
+        return;
+      }
+
+      // Success - set pending request and show pending UI
+      setExistingRequest({
+        id: (result.data as { requestId: string }).requestId,
+        storeId: '',
+        userId: user.id,
+        storeName: formData.storeName,
+        ownerName: formData.ownerName,
+        ownerEmail: formData.contactEmail,
+        contactPhone: formData.contactPhone,
+        governmentIdUrl: governmentIdUrl,
+        storeDescription: formData.storeDescription,
+        address: formData.address,
+        city: formData.city,
+        state: formData.state,
+        postalCode: formData.postalCode,
+        country: formData.country,
+        status: 'pending',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      });
     } catch (error) {
       console.error('Error submitting form:', error);
-      alert('Failed to submit store setup. Please try again.');
+      setSubmitError('An unexpected error occurred. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
@@ -212,9 +360,26 @@ export default function StoreSetupPage() {
               Set Up Your Store
             </h1>
             <p className="text-lg text-stone-600 max-w-2xl mx-auto">
-              Complete your store profile to start selling on LoTaYah. All information is secure and will be verified.
+              Complete your store profile to start selling on LoTaYah. Your request will be reviewed by our admin team.
             </p>
           </div>
+
+          {/* Info Banner */}
+          <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-xl flex items-start gap-3">
+            <AlertCircle className="w-5 h-5 text-blue-500 flex-shrink-0 mt-0.5" />
+            <p className="text-sm text-blue-700">
+              After submitting, your store setup request will be reviewed by our admin team. 
+              You will be notified once your store is approved and ready to go live.
+            </p>
+          </div>
+
+          {/* Global Error Message */}
+          {submitError && (
+            <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl flex items-start gap-3">
+              <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
+              <p className="text-sm text-red-700">{submitError}</p>
+            </div>
+          )}
 
           {/* Form Card */}
           <div className="bg-white/90 backdrop-blur-xl rounded-3xl shadow-2xl border border-stone-200/50 p-6 md:p-10">
@@ -242,6 +407,7 @@ export default function StoreSetupPage() {
                         : 'border-stone-200 bg-stone-50 focus:border-amber-400 focus:ring-2 focus:ring-amber-100'
                     } focus:outline-none`}
                     placeholder="Enter your store name"
+                    maxLength={100}
                   />
                   {errors.storeName && (
                     <p className="mt-1.5 text-sm text-red-600 flex items-center gap-1">
@@ -267,8 +433,9 @@ export default function StoreSetupPage() {
                         : 'border-stone-200 bg-stone-50 focus:border-amber-400 focus:ring-2 focus:ring-amber-100'
                     } focus:outline-none`}
                     placeholder="Describe your store, what you sell, and what makes it special..."
+                    maxLength={500}
                   />
-                  <p className="mt-1.5 text-xs text-stone-500">
+                  <p className={`mt-1.5 text-xs ${formData.storeDescription.length < 20 ? 'text-amber-600' : 'text-stone-500'}`}>
                     {formData.storeDescription.length}/500 characters (minimum 20)
                   </p>
                   {errors.storeDescription && (
@@ -285,6 +452,32 @@ export default function StoreSetupPage() {
                 <div className="flex items-center gap-3 pb-4">
                   <User className="w-5 h-5 text-amber-600" />
                   <h2 className="text-2xl font-bold text-stone-900">Contact Information</h2>
+                </div>
+
+                {/* Owner Name */}
+                <div>
+                  <label htmlFor="ownerName" className="block text-sm font-semibold text-stone-700 mb-2">
+                    <User className="w-4 h-4 inline mr-1" />
+                    Owner Name <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    id="ownerName"
+                    value={formData.ownerName}
+                    onChange={(e) => handleInputChange('ownerName', e.target.value)}
+                    className={`w-full px-4 py-3 rounded-xl border-2 transition-all duration-200 ${
+                      errors.ownerName
+                        ? 'border-red-300 bg-red-50/50 focus:border-red-500 focus:ring-2 focus:ring-red-200'
+                        : 'border-stone-200 bg-stone-50 focus:border-amber-400 focus:ring-2 focus:ring-amber-100'
+                    } focus:outline-none`}
+                    placeholder="Your full name"
+                  />
+                  {errors.ownerName && (
+                    <p className="mt-1.5 text-sm text-red-600 flex items-center gap-1">
+                      <AlertCircle className="w-4 h-4" />
+                      {errors.ownerName}
+                    </p>
+                  )}
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -494,7 +687,7 @@ export default function StoreSetupPage() {
                   <p className="text-sm text-stone-700 flex items-start gap-2">
                     <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
                     <span>
-                      For security and verification purposes, please upload a clear photo of your government-issued ID (National ID, Passport, or Driver's License). 
+                      For security and verification purposes, please upload a clear photo of your government-issued ID (National ID, Passport, or Driver&apos;s License). 
                       This information is encrypted and securely stored. Your store will be verified before going live.
                     </span>
                   </p>
@@ -575,7 +768,8 @@ export default function StoreSetupPage() {
                   <button
                     type="button"
                     onClick={() => router.back()}
-                    className="px-6 py-3 rounded-xl font-semibold text-stone-700 bg-stone-100 hover:bg-stone-200 transition-colors border-2 border-stone-200"
+                    disabled={isSubmitting}
+                    className="px-6 py-3 rounded-xl font-semibold text-stone-700 bg-stone-100 hover:bg-stone-200 transition-colors border-2 border-stone-200 disabled:opacity-50"
                   >
                     Cancel
                   </button>
@@ -586,13 +780,13 @@ export default function StoreSetupPage() {
                   >
                     {isSubmitting ? (
                       <>
-                        <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                        <Loader2 className="w-5 h-5 animate-spin" />
                         Submitting...
                       </>
                     ) : (
                       <>
                         <CheckCircle className="w-5 h-5" />
-                        Submit Store Setup
+                        Submit for Verification
                       </>
                     )}
                   </button>
@@ -605,7 +799,7 @@ export default function StoreSetupPage() {
           <div className="mt-8 text-center text-sm text-stone-500">
             <p>
               By submitting this form, you agree to our Terms of Service and Privacy Policy.
-              Your information will be securely processed and verified.
+              Your information will be securely processed and verified by our admin team.
             </p>
           </div>
         </div>
@@ -613,4 +807,3 @@ export default function StoreSetupPage() {
     </ViewTransition>
   );
 }
-
